@@ -1,0 +1,25 @@
+dagit==0.9.11
+dagster==0.9.11
+dagster-aws==0.9.11
+dagster-celery[flower,redis,kubernetes]==0.9.11
+dagster-cron==0.9.11
+dagster-graphql==0.9.11
+dagster-pandas==0.9.11
+dagster-postgres==0.9.11
+dagster-pyspark==0.9.11
+dagster-spark==0.9.11
+dagster-gcp==0.9.11
+dagster_k8s==0.9.11
+dagstermill==0.9.11
+
+## col and lit are not explicitly defined, you need to install 'pip install pyspark-stubs==x.x.x' (x.x.x = pyspark version) in order to import col and lit in solids
+pyspark-stubs==3.0.0.dev8
+
+#initial install
+#pip install -r requirements.txt
+
+#create requirements.txt
+#pip freeze | grep dag > requirements.txt
+
+#upgrade
+#pip install -r requirements.txt --upgrade

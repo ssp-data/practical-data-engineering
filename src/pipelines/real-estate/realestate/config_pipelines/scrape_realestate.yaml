@@ -1,0 +1,104 @@
+solids:
+  merge_SO_buy:
+    solids:
+      merge_property_delta:
+        inputs:
+          target_delta_table:
+            database: immo
+            s3_coordinate_bucket: real-estate
+            s3_coordinate_key: lake/bronze/property
+            table_name: property
+      upload_to_s3:
+        inputs:
+          s3_coordinate:
+            bucket: real-estate
+            key: staging
+      cache_properies_from_rest_api:
+        inputs:
+          target_key: /tmp/dagster/file_cache
+  list_SO_buy_flat:
+    solids:
+      list_props_immo24:
+        inputs:
+          searchCriteria:
+            city: Solothurn
+            propertyType: flat
+            radius: 7
+            rentOrBuy: buy
+  merge_BE_buy:
+    solids:
+      merge_property_delta:
+        inputs:
+          target_delta_table:
+            database: immo
+            s3_coordinate_bucket: real-estate
+            s3_coordinate_key: lake/bronze/property
+            table_name: property
+      upload_to_s3:
+        inputs:
+          s3_coordinate:
+            bucket: real-estate
+            key: staging
+      cache_properies_from_rest_api:
+        inputs:
+          target_key: /tmp/dagster/file_cache
+  list_BE_buy_flat:
+    solids:
+      list_props_immo24:
+        inputs:
+          searchCriteria:
+            city: Bern
+            propertyType: flat
+            radius: 7
+            rentOrBuy: buy
+  # SO_rent_flat:
+  #   solids:
+  #     cache_properies_from_rest_api:
+  #       inputs:
+  #         target_key: /tmp/dagster/file_cache
+  #     list_props_immo24:
+  #       inputs:
+  #         searchCriteria:
+  #           city: Solothurn
+  #           propertyType: flat
+  #           radius: 0
+  #           rentOrBuy: rent
+  #     upload_to_s3:
+  #       inputs:
+  #         s3_coordinate:
+  #           bucket: real-estate
+  #           key: staging
+  # BE_buy_flat:
+  #   solids:
+  #     cache_properies_from_rest_api:
+  #       inputs:
+  #         target_key: /tmp/dagster/file_cache
+  #     list_props_immo24:
+  #       inputs:
+  #         searchCriteria:
+  #           city: Bern
+  #           propertyType: flat
+  #           radius: 0
+  #           rentOrBuy: buy
+  #     upload_to_s3:
+  #       inputs:
+  #         s3_coordinate:
+  #           bucket: real-estate
+  #           key: staging
+  # BE_rent_flat:
+  #   solids:
+  #     cache_properies_from_rest_api:
+  #       inputs:
+  #         target_key: /tmp/dagster/file_cache
+  #     list_props_immo24:
+  #       inputs:
+  #         searchCriteria:
+  #           city: Bern
+  #           propertyType: flat
+  #           radius: 0
+  #           rentOrBuy: rent
+  #     upload_to_s3:
+  #       inputs:
+  #         s3_coordinate:
+  #           bucket: real-estate
+  #           key: staging

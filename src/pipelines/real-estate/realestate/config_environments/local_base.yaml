@@ -1,0 +1,77 @@
+resources:
+  boto3:
+    config:
+      aws_access_key_id: minio
+      aws_secret_access_key: miniostorage
+      endpoint_url: http://192.168.2.128:9000
+  s3:
+    config:
+      endpoint_url: http://192.168.2.128:9000
+  file_cache:
+    config:
+      overwrite: false
+      target_folder: "/tmp/dagster/file_cache"
+  pyspark:
+    config:
+      spark_conf:
+        spark:
+          databricks:
+            delta:
+              schema:
+                autoMerge:
+                  enabled: true #enables schemaEvolution and mergeSchema in MERGE Statement
+          # master: "k8s://https://kubernetes.docker.internal:6443"
+          # serviceAccount: spark
+          # delta:
+          #   logStore:
+          #     class: org.apache.spark.sql.delta.storage.S3SingleDriverLogStore #this is used for delta-lake
+          executor:
+            instances: 1
+            memory: 4g
+          # hadoop:
+          #   fs:
+          #     s3a:
+          #       endpoint:
+          #         env: MINIO_ENDPOINT #"127.0.0.1:9000"
+          #       access:
+          #         key:
+          #           env: MINIO_ACCESS_KEY
+          #       secret:
+          #         key:
+          #           env: MINIO_SECRET_KEY
+          #       impl: "org.apache.hadoop.fs.s3a.S3AFileSystem"
+          #       path:
+          #         style:
+          #           access: "true"
+          #       connection:
+          #         ssl:
+          #           enabled: "false"
+          # sql:
+          #   extensions: io.delta.sql.DeltaSparkSessionExtension #this is used for delta-lake
+          #   catalog:
+          #       spark_catalog: org.apache.spark.sql.delta.catalog.DeltaCatalog
+            # execution:
+            #   arrow:
+            #     pyspark:
+            #       enabled: True #Enable Arrow-based columnar data transfers. Used for simulating SA in SA_simulation_input_nps_categories()
+          jars:
+            packages: "io.delta:delta-core_2.12:0.7.0,org.apache.hadoop:hadoop-aws:3.2.0,com.amazonaws:aws-java-sdk-bundle:1.11.563"
+            #repositories: "$SPARK_HOME/jars/delta-core_2.12-0.7.0.jar,$SPARK_HOME/jars/hadoop-aws-3.2.0.jar"
+            #use "repositories" if you manually download jars and copy them to $SPARK_HOME/jars (e.g. if proxy doesn't allow)
+            #use "packages" if you have internet connection, this way spark will automatically download dependencies with maven
+          kubernetes:
+            # namespace: default
+            # authenticate:
+            #   driver:
+            #     serviceAccountName: spark #default
+            # container:
+            #   image: "spark:spark-docker"
+            # pyspark:
+            #   pythonVersion: 3
+            executor:
+              request:
+                cores: "1"
+              limit:
+                cores: "4"
+          # submit:
+          #   deployMode: "client"

@@ -1,0 +1,16 @@
+# load_from:
+#   - python_module: realestate.repository
+# load_from:
+#   - python_file:
+#       relative_path: repository.py
+#       attribute: realestate_repo
+# load_from:
+#   - python_file:
+#       relative_path: realestate/pipelines.py
+#       location_name: realestate_repo
+#       working_directory: $git/dagster-data-pipeline/src/pipelines/real-estate/realestate
+
+load_from:
+  - python_file:
+      relative_path: realestate/repo.py
+      location_name: realestate_repo

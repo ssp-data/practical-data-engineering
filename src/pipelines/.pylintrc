@@ -1,0 +1,31 @@
+[MESSAGES CONTROL]
+
+# Enable the message, report, category or checker with the given id(s). You can
+# either give multiple identifier separated by comma (,) or put this option
+# multiple time.
+#enable=
+
+# Disable the message, report, category or checker with the given id(s). You
+# can either give multiple identifier separated by comma (,) or put this option
+# multiple time (only on the command line, not in the configuration file where
+# it should appear only once).#
+#
+# R - refactoring related checks
+# C - convention related checks
+# W0511 disable TODO warning
+# W1201, W1202 disable log format warning. False positives (I think)
+# W0231 disable super-init-not-called - pylint doesn't understand six.with_metaclass(ABCMeta)
+
+disable=C,R,duplicate-code,W0231,W0511,W1201,W1202,no-init
+
+# See: https://github.com/getsentry/responses/issues/74
+[TYPECHECK]
+ignored-classes=responses
+signature-mutators=solid,composite_solid,lambda_solid
+
+[MASTER]
+ignore=snapshots
+
+# See: https://stackoverflow.com/questions/40163106/cannot-find-col-function-in-pyspark
+generated-members=pyspark.*
+ignored-modules=pyspark.sql.functions
