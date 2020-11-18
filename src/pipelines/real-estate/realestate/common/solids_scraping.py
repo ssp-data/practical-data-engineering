@@ -90,7 +90,7 @@ def list_props_immo24(context, searchCriteria: SearchCoordinate) -> PropertyData
         lastPage = int(p.pop())
     else:
         lastPage = 1
-    context.log.info('Count of Pages found:: {}'.format(lastPage))
+    context.log.info('Count of Pages found: {}'.format(lastPage))
 
     ids = []
     propertyPrice = []

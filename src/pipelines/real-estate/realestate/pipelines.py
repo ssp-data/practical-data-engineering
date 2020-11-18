@@ -88,7 +88,7 @@ def list_changed_properties():
     description="This will flatten the JSON file from S3 and Merge it to the Delta Table",
     input_defs=[InputDefinition(name="properties", dagster_type=PropertyDataFrame)],
     output_defs=[
-        OutputDefinition(name="delta_coordinta", dagster_type=DeltaCoordinate, is_required=False)
+        OutputDefinition(name="delta_coordinate", dagster_type=DeltaCoordinate, is_required=False)
     ],
 )
 def merge_staging_to_delta_table(properties):
@@ -113,8 +113,10 @@ def merge_staging_to_delta_table(properties):
 )
 def scrape_realestate():
 
-    properties = list_changed_properties.alias('list_SO_buy_flat')()
-    merge_staging_to_delta_table.alias('merge_SO_buy')(properties)
+    merge_staging_to_delta_table.alias('merge_SO_buy')(
+        list_changed_properties.alias('list_SO_buy_flat')()
+    )
 
-    properties = list_changed_properties.alias('list_BE_buy_flat')()
-    merge_staging_to_delta_table.alias('merge_BE_buy')(properties)
+    merge_staging_to_delta_table.alias('merge_BE_buy')(
+        list_changed_properties.alias('list_BE_buy_flat')()
+    )

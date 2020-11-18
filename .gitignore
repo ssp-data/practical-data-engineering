@@ -164,3 +164,17 @@ src/pipelines/real-estate/realestate/notebooks/_archive/
 src/pipelines/real-estate/realestate/notebooks/plots/
 
 manifests/
+
+src/pipelines/real-estate/realestate/notebooks/Comprehensive data exploration - based on existing jupyter notebook.ipynb
+
+src/pipelines/real-estate/realestate/notebooks/Delays_by_Geography.ipynb
+
+src/pipelines/real-estate/realestate/notebooks/Fares_vs_Delays.ipynb
+
+src/pipelines/real-estate/realestate/notebooks/Immo - Hedonische Berechnung.ipynb
+
+src/pipelines/real-estate/realestate/notebooks/Pedro Marcelino - Comprehensive data exploration with Python.ipynb
+
+src/pipelines/real-estate/realestate/notebooks/SFO_Delays_by_Destination.ipynb
+
+src/pipelines/real-estate/realestate/notebooks/Yusuke Nakaichi - House Prices.ipynb

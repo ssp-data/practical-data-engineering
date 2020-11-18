@@ -65,7 +65,7 @@ SearchCoordinate = dict_with_fields(
 
 PropertyDataFrame = DagsterType(
     name="PropertyDataFrame",
-    type_check_fn=lambda _, value: isinstance(value, list) or value is None,
+    type_check_fn=lambda _, value: isinstance(value, list),
     description="A List with scraped Properties with id, last_normalized_price and search criterias wich it was found.",
 )
 # SimplePropertyDict = dict_with_fields(

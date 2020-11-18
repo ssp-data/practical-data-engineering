@@ -445,7 +445,7 @@ def get_changed_or_new_properties(context, properties):
         ids_changed = ', '.join(str(e) for e in df_changed['id'].tolist())
 
         context.log.info("changed properties: {}".format(ids_changed))
-        return changed_properties
+        yield Output(changed_properties, "properties")
 
 
 @solid(required_resource_keys={'boto3', 's3'}, description='''Uploads file to s3 ''')
