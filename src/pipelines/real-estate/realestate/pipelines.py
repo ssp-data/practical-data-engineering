@@ -85,7 +85,9 @@ def list_changed_properties():
 
 
 @composite_solid(
-    description="This will flatten the JSON file from S3 and Merge it to the Delta Table",
+    description="""This will take the list of properties, downloads the full dataset (JSON) from ImmoScout24,
+    cache it locally to avoid scraping again in case of error. The cache will be zipped and uploaded to S3.
+    From there the JSON will be flatten and merged (with schemaEvloution=True) into the Delta Table""",
     input_defs=[InputDefinition(name="properties", dagster_type=PropertyDataFrame)],
     output_defs=[
         OutputDefinition(name="delta_coordinate", dagster_type=DeltaCoordinate, is_required=False)
