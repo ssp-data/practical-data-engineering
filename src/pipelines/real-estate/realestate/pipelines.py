@@ -119,6 +119,6 @@ def scrape_realestate():
         list_changed_properties.alias('list_SO_buy_flat')()
     )
 
-    merge_staging_to_delta_table.alias('merge_BE_buy')(
+    data_exploration()
         list_changed_properties.alias('list_BE_buy_flat')()
     )
