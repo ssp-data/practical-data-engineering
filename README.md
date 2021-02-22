@@ -6,10 +6,15 @@
 
 This is a practical example of a data engineering project with real-estates.<br>
 It includes:
-- **scrape real-estate information** from the web with python and [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)
-- **enrich with google maps** direction data
-- **visualize and analyse** with [Jupyter Notebook](https://jupyter.org/) and [Apache Superset](https://superset.apache.org/)
-- **automate** full-data-pipeline with <a href="https://dagster.io">dagster.io</a>
+* Getting the Data – Scraping with [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)
+* Storing on S3-[MinIO](https://min.io/)
+* Custom Change Data Capture (CDC)
+* Adding Database features to S3 – [Delta Lake](https://delta.io/) & [Spark](https://spark.apache.org/)
+* Machine Learning part – [Jupyter Notebook](https://jupyter.org/)
+* Ingesting Data Warehouse for low latency – [Apache Druid](https://druid.apache.org/)
+* The UI with Dashboards and more – [Apache Superset](https://superset.apache.org/)
+* DevOps engine – [Kubernetes](https://kubernetes.io/)
+* Orchestrating everything together – [Dagster](https://dagster.io)
 <br />
 
 The Status of the project you find [here](https://github.com/orgs/sspaeti-com/projects/1). And a [blog post](https://sspaeti.com) about is coming soon.
