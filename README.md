@@ -4,8 +4,8 @@
 
 # Practical Data Engineering Project
 
-This is a practical example of a data engineering project with real-estates.<br>
-It includes:
+This is a practical example of a data engineering project with real-estates. The connected blog post about [Building a Data Engineering Project in 20 Minutes](https://www.sspaeti.com/blog/data-engineering-project-in-twenty-minutes/) you can find on my [website](https://sspaeti.com). Topics are:
+<br>
 * Getting the Data – Scraping with [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)
 * Storing on S3-[MinIO](https://min.io/)
 * Custom Change Data Capture (CDC)
@@ -13,11 +13,10 @@ It includes:
 * Machine Learning part – [Jupyter Notebook](https://jupyter.org/)
 * Ingesting Data Warehouse for low latency – [Apache Druid](https://druid.apache.org/)
 * The UI with Dashboards and more – [Apache Superset](https://superset.apache.org/)
-* DevOps engine – [Kubernetes](https://kubernetes.io/)
 * Orchestrating everything together – [Dagster](https://dagster.io)
+* DevOps engine – [Kubernetes](https://kubernetes.io/)
 <br />
 
-The Status of the project you find [here](https://github.com/orgs/sspaeti-com/projects/1). And a [blog post](https://sspaeti.com) about is coming soon.
-
-<br />
+The Status of the project you find [here](https://github.com/orgs/sspaeti-com/projects/1).
+<br /><br />
 <img src="https://www.sspaeti.com/blog/wp-content/uploads/2018/06/sspaeti_com_todays_office_033.jpg" width="600">
