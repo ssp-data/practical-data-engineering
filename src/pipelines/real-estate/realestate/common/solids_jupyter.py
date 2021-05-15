@@ -1,11 +1,14 @@
-from dagster import InputDefinition, Field, OutputDefinition, FileHandle
+from dagster import InputDefinition, Field, OutputDefinition, FileHandle, ModeDefinition
 import dagstermill as dm
 from dagster.utils import script_relative_path
 import os
 
 
 def _notebook_path(name):
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "notebooks", name)
+    return os.path.join(
+        os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'notebooks')), name
+    )
+    # os.path.join(os.path.dirname(os.path.abspath(__file__)), "notebooks", name)
 
 
 def notebook_solid(name, notebook_path, input_defs, output_defs, required_resource_keys=None):
@@ -25,6 +28,10 @@ data_exploration = notebook_solid(
     "comprehensive-real-estate-data-exploration.ipynb",
     input_defs=[
         InputDefinition("delta_path", str, description="s3 path to the property-delta-table"),
+        InputDefinition("key", str, description="s3 key"),
+        InputDefinition("secret", str, description="s3 secret"),
+        InputDefinition("endpoint", str, description="s3 endpoint"),
+        # InputDefinition("pyspark", ModeDefinition, description="pyspark resource"),
     ],
     output_defs=[
         OutputDefinition(
@@ -33,7 +40,7 @@ data_exploration = notebook_solid(
             description="The saved PDF plots.",
         )
     ],
-    # required_resource_keys={"db_info"},
+    required_resource_keys={"pyspark"},
 )
 
 # data_exploration = dm.define_dagstermill_solid(
