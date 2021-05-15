@@ -17,6 +17,7 @@ from dagster import (
     List,
     Nothing,
 )
+from dagster.experimental import DynamicOutput, DynamicOutputDefinition
 
 from realestate.common.solids_druid import ingest_druid
 from realestate.common.solids_scraping import list_props_immo24, cache_properies_from_rest_api
@@ -34,6 +35,7 @@ from realestate.common.solids_spark_delta import (
     s3_to_df,
 )
 from realestate.common.solids_jupyter import data_exploration
+from itertools import chain
 
 from dagster_aws.s3.resources import s3_resource
 
@@ -176,20 +178,76 @@ def merge_staging_to_delta_table(
     return _merge_staging_to_delta_table
 
 
-# @composite_solid(
-#     description="""This will take the list of properties, downloads the full dataset (JSON) from ImmoScout24,
-#     cache it locally to avoid scraping again in case of error. The cache will be zipped and uploaded to S3.
-#     From there the JSON will be flatten and merged (with schemaEvloution=True) into the Delta Table""",
-#     input_defs=[InputDefinition(name="properties", dagster_type=PropertyDataFrame)],
-#     output_defs=[
-#         OutputDefinition(name="delta_coordinate", dagster_type=DeltaCoordinate, is_required=False)
-#     ],
-# )
-# def merge_staging_to_delta_table(properties):
+@composite_solid(
+    description="""This will take the list of properties, downloads the full dataset (JSON) from ImmoScout24,
+    cache it locally to avoid scraping again in case of error. The cache will be zipped and uploaded to S3.
+    From there the JSON will be flatten and merged (with schemaEvloution=True) into the Delta Table""",
+    input_defs=[InputDefinition(name="properties", dagster_type=PropertyDataFrame)],
+    output_defs=[
+        OutputDefinition(name="delta_coordinate", dagster_type=DeltaCoordinate, is_required=False)
+    ],
+)
+def merge_staging_to_delta_table_composite(properties):
 
-#     prop_s3_coordinate = upload_to_s3(cache_properies_from_rest_api(properties))
-#     # return assets for property
-#     return merge_property_delta(input_dataframe=flatten_json(s3_to_df(prop_s3_coordinate)))
+    prop_s3_coordinate = upload_to_s3(cache_properies_from_rest_api(properties))
+    # return assets for property
+    return merge_property_delta(input_dataframe=flatten_json(s3_to_df(prop_s3_coordinate)))
+
+
+@solid(
+    description="""Collect a list of `PropertyDataFrame` to a single `PropertyDataFrame`""",
+    input_defs=[InputDefinition(name="properties", dagster_type=List(PropertyDataFrame))],
+    output_defs=[OutputDefinition(name="properties", dagster_type=PropertyDataFrame)],
+)
+def collect_properties(properties):
+
+    return list(chain.from_iterable(properties))
+
+
+@solid(
+    description='Collects Search Coordinates and spawns dynamically Pipelines downstream.',
+    input_defs=[InputDefinition("search_criterias", List[SearchCoordinate])],
+    output_defs=[DynamicOutputDefinition(SearchCoordinate)],
+)
+def collect_search_criterias(context, search_criterias):
+    for search in search_criterias:
+        yield DynamicOutput(
+            value=search,
+            mapping_key='_'.join(
+                [
+                    search['city'].lower(),
+                    search['rentOrBuy'],
+                    search['propertyType'].replace("-", "_"),
+                    str(search['radius']),
+                ]
+            ),
+        )
+
+
+@pipeline(
+    mode_defs=[local_mode],
+    preset_defs=[
+        PresetDefinition.from_files(
+            name='local',
+            mode='local',
+            config_files=[
+                file_relative_path(__file__, 'config_environments/local_base.yaml'),
+                file_relative_path(__file__, 'config_pipelines/scrape_realestate_dynamically.yaml'),
+            ],
+        ),
+    ],
+)
+def scrape_realestate_dynamically():
+
+    search_criterias = collect_search_criterias().map(
+        list_changed_properties().alias("list_changed_properties")
+    )
+
+    data_exploration(
+        merge_staging_to_delta_table_composite.alias("merge_staging_to_delta_table")(
+            collect_properties(search_criterias.collect())
+        )
+    )
 
 
 @pipeline(

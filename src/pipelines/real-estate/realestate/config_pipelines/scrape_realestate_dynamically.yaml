@@ -1,0 +1,29 @@
+solids:
+  collect_search_criterias:
+    inputs:
+      search_criterias:
+        - city: Bern
+          propertyType: real-estate
+          radius: 0
+          rentOrBuy: buy
+        - city: Solothurn
+          propertyType: real-estate
+          radius: 0
+          rentOrBuy: buy
+  merge_staging_to_delta_table:
+    solids:
+      cache_properies_from_rest_api:
+        inputs:
+          target_key: /tmp/dagster/file_cache
+      merge_property_delta:
+        inputs:
+          target_delta_table:
+            database: immo
+            s3_coordinate_bucket: real-estate
+            s3_coordinate_key: lake/bronze/property
+            table_name: property
+      upload_to_s3:
+        inputs:
+          s3_coordinate:
+            bucket: real-estate
+            key: staging
