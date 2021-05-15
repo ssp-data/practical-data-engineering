@@ -1,14 +1,14 @@
 #dagster dependencies
-dagster==0.9.22
-dagit==0.9.22
-dagster-graphql==0.9.22
-dagster-pandas==0.9.22
-dagstermill==0.9.22
-dagster-aws==0.9.22
-dagster-cron==0.9.22
-dagster-postgres==0.9.22
-dagster-spark==0.9.22
-dagster-pyspark==0.9.22
+dagster==0.11.9
+dagit==0.11.9
+dagster-graphql==0.11.9
+dagster-pandas==0.11.9
+dagstermill==0.11.9
+dagster-aws==0.11.9
+dagster-cron==0.11.9
+dagster-postgres==0.11.9
+dagster-spark==0.11.9
+dagster-pyspark==0.11.9
 # general packages -> from: https://github.com/dagster-io/dagster/blob/master/python_modules/dagster/dev-requirements.txt
 # astroid>=2.3.3; python_version >= '3.6'
 black==19.10b0; python_version >= '3.6'
@@ -30,7 +30,7 @@ pytest==4.6.7
 tox==3.14.2
 # tqdm==4.48.0 # pylint crash 48.1+
 #my additional requirement
-docker-compose==1.23.2
+#docker-compose==1.23.2
 pyspark>=3.0.0; python_version >= "3.8"
 pyspark>=2.0.2; python_version < "3.8"
 pyspark-stubs==3.0.0.dev8
