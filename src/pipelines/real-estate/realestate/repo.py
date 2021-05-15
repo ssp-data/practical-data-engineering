@@ -1,8 +1,8 @@
 from dagster import repository
 
-from realestate.pipelines import scrape_realestate, scrape_realestate_dynamically
+from realestate.pipelines import scrape_realestate
 
 
 @repository
 def realestate_repo():
-    return [scrape_realestate, scrape_realestate_dynamically]
+    return [scrape_realestate]

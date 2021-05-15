@@ -77,105 +77,16 @@ local_mode = ModeDefinition(
 # )
 
 
-@solid(
-    description='',
-    input_defs=[InputDefinition("search_criterias", List[SearchCoordinate])],
-    output_defs=[OutputDefinition(name="search_criterias", dagster_type=List[SearchCoordinate]),],
-)
-def list_changed_property_creator(context, search_criterias):
-    # for s in search_criterias:
-    #     composite_solid_name = 'list_{city}_{rent_or_buy}_{property_type}'.format(
-    #         city=s['city'], rent_or_buy=s['rentOrBuy'], property_type=s['propertyType']
-    #     )
-    #     list_changed_properties(
-    #         name=composite_solid_name,
-    #         input_defs=[InputDefinition("search_criteria", SearchCoordinate)],
-    #     )()
-
-    # search_criteria=s)()
-    return search_criterias
-    # yield Output("search_criterias", search_criterias)
-
-
-def list_changed_properties(
-    *arg,
-    name="default_name",
+@composite_solid(
+    description='Downloads full dataset (JSON) from ImmoScout24, cache it, zip it and and upload it to S3',
     input_defs=[InputDefinition(name="search_criteria", dagster_type=SearchCoordinate)],
-    **kwargs,
-):
-    """
-    Args:
-        args (any): One or more arguments used to generate the new solid
-        name (str): The name of the new composite solid.
-        input_defs (list[InputDefinition]): Any input definitions for the new solid. Default: None.
+    output_defs=[
+        OutputDefinition(name="properties", dagster_type=PropertyDataFrame, is_required=False),
+    ],
+)
+def list_changed_properties(search_criteria):
 
-    Returns:
-        function: The new composite solid.
-    """
-
-    @composite_solid(
-        name=name,
-        description='Downloads full dataset (JSON) from ImmoScout24, cache it, zip it and and upload it to S3',
-        input_defs=input_defs,
-        output_defs=[
-            OutputDefinition(name="properties", dagster_type=PropertyDataFrame, is_required=False),
-        ],
-        **kwargs,
-    )
-    def _list_changed_properties(search_criteria):
-
-        return get_changed_or_new_properties(list_props_immo24(searchCriteria=search_criteria))
-
-    return _list_changed_properties
-
-
-# @composite_solid(
-#     description='Downloads full dataset (JSON) from ImmoScout24, cache it, zip it and and upload it to S3',
-#     # input_defs=[InputDefinition(name='properties', dagster_type=PropertyDataFrame)]
-#     output_defs=[
-#         OutputDefinition(name="properties", dagster_type=PropertyDataFrame, is_required=False),
-#     ],
-# )
-# def list_changed_properties():
-
-#     return get_changed_or_new_properties(list_props_immo24())
-
-
-def merge_staging_to_delta_table(
-    *arg,
-    name="default_name",
-    input_defs=[InputDefinition(name="properties", dagster_type=PropertyDataFrame)],
-    **kwargs,
-):
-    """
-    Args:
-        args (any): One or more arguments used to generate the new solid
-        name (str): The name of the new composite solid.
-        input_defs (list[InputDefinition]): Any input definitions for the new solid. Default: None.
-
-    Returns:
-        function: The new composite solid.
-    """
-
-    @composite_solid(
-        name=name,
-        description="""This will take the list of properties, downloads the full dataset (JSON) from ImmoScout24,
-    cache it locally to avoid scraping again in case of error. The cache will be zipped and uploaded to S3.
-    From there the JSON will be flatten and merged (with schemaEvloution=True) into the Delta Table""",
-        input_defs=input_defs,
-        output_defs=[
-            OutputDefinition(
-                name="delta_coordinate", dagster_type=DeltaCoordinate, is_required=False
-            )
-        ],
-        **kwargs,
-    )
-    def _merge_staging_to_delta_table(properties) -> Nothing:
-        prop_s3_coordinate = upload_to_s3(cache_properies_from_rest_api(properties))
-        # return assets for property
-        return merge_property_delta(input_dataframe=flatten_json(s3_to_df(prop_s3_coordinate)))
-
-    return _merge_staging_to_delta_table
+    return get_changed_or_new_properties(list_props_immo24(searchCriteria=search_criteria))
 
 
 @composite_solid(
@@ -195,7 +106,7 @@ def merge_staging_to_delta_table_composite(properties):
 
 
 @solid(
-    description="""Collect a list of `PropertyDataFrame` to a single `PropertyDataFrame`""",
+    description="""Collect a List of `PropertyDataFrame` from different cities to a single `PropertyDataFrame` List""",
     input_defs=[InputDefinition(name="properties", dagster_type=List(PropertyDataFrame))],
     output_defs=[OutputDefinition(name="properties", dagster_type=PropertyDataFrame)],
 )
@@ -232,60 +143,17 @@ def collect_search_criterias(context, search_criterias):
             mode='local',
             config_files=[
                 file_relative_path(__file__, 'config_environments/local_base.yaml'),
-                file_relative_path(__file__, 'config_pipelines/scrape_realestate_dynamically.yaml'),
-            ],
-        ),
-    ],
-)
-def scrape_realestate_dynamically():
-
-    search_criterias = collect_search_criterias().map(
-        list_changed_properties().alias("list_changed_properties")
-    )
-
-    data_exploration(
-        merge_staging_to_delta_table_composite.alias("merge_staging_to_delta_table")(
-            collect_properties(search_criterias.collect())
-        )
-    )
-
-
-@pipeline(
-    mode_defs=[local_mode],
-    preset_defs=[
-        PresetDefinition.from_files(
-            name='local',
-            mode='local',
-            config_files=[
-                file_relative_path(__file__, 'config_environments/local_base.yaml'),
                 file_relative_path(__file__, 'config_pipelines/scrape_realestate.yaml'),
             ],
         ),
     ],
 )
 def scrape_realestate():
-    # search_criterias = list_changed_property_creator()
-    # # https://stackoverflow.com/questions/61330816/how-would-you-parameterize-dagster-pipelines-to-run-same-solids-with-multiple-di
 
-    # queries = [('table', 'query'), ('table2', 'query2')]
-    # print(search_criterias.__str__)
-    # for s in queries:  # search_criterias:
-    #     composite_solid_name = 'list_{city}_{rent_or_buy}_{property_type}'.format(
-    #         city=s['city'], rent_or_buy=s['rentOrBuy'], property_type=s['propertyType']
-    #     )
+    search_criterias = collect_search_criterias().map(list_changed_properties)
 
-    # list_changed_properties(
-    #     name=composite_solid_name,
-    #     input_defs=[InputDefinition("search_criteria", SearchCoordinate)],
-    # )(search_criteria=s)
-    # delta_tables = []
-
-    merge_staging_to_delta_table(
-        name="merge_SO_buy", input_defs=[InputDefinition("properties", PropertyDataFrame)]
-    )(properties=list_changed_properties(name='list_SO_buy_flat')())
-
-    merge_staging_to_delta_table(
-        name="merge_BE_buy", input_defs=[InputDefinition("properties", PropertyDataFrame)]
-    )(properties=list_changed_properties(name='list_BE_buy_flat')()),
-
-    data_exploration()
+    data_exploration(
+        merge_staging_to_delta_table_composite.alias("merge_staging_to_delta_table")(
+            collect_properties(search_criterias.collect())
+        )
+    )
