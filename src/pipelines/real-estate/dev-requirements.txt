@@ -1,14 +1,14 @@
 #dagster dependencies
-dagster==0.9.19
-dagit==0.9.19
-dagster-graphql==0.9.19
-dagster-pandas==0.9.19
-dagstermill==0.9.19
-dagster-aws==0.9.19
-dagster-cron==0.9.19
-dagster-postgres==0.9.19
-dagster-spark==0.9.19
-dagster-pyspark==0.9.19
+dagster==0.9.22
+dagit==0.9.22
+dagster-graphql==0.9.22
+dagster-pandas==0.9.22
+dagstermill==0.9.22
+dagster-aws==0.9.22
+dagster-cron==0.9.22
+dagster-postgres==0.9.22
+dagster-spark==0.9.22
+dagster-pyspark==0.9.22
 # general packages -> from: https://github.com/dagster-io/dagster/blob/master/python_modules/dagster/dev-requirements.txt
 # astroid>=2.3.3; python_version >= '3.6'
 black==19.10b0; python_version >= '3.6'
@@ -38,3 +38,14 @@ pyarrow
 pandas
 boto3
 pandasql
+#requirements for comprehensive-real-estate-data-exploration.ipynb
+numpy
+pandasql
+seaborn
+folium
+ijson
+koalas
+scipy
+matplotlib
+#intel-scikit-learn
+scikit-learn

@@ -1,13 +1,11 @@
 solids:
   list_SO_buy_flat:
-    solids:
-      list_props_immo24:
-        inputs:
-          searchCriteria:
-            city: Solothurn
-            propertyType: flat
-            radius: 0 #7
-            rentOrBuy: buy
+    inputs:
+      search_criteria:
+        city: Solothurn
+        propertyType: real-estate #flat
+        radius: 0
+        rentOrBuy: buy
   merge_SO_buy:
     solids:
       cache_properies_from_rest_api:
@@ -26,14 +24,12 @@ solids:
             bucket: real-estate
             key: staging
   list_BE_buy_flat:
-    solids:
-      list_props_immo24:
-        inputs:
-          searchCriteria:
-            city: Bern
-            propertyType: flat
-            radius: 0 #7
-            rentOrBuy: buy
+    inputs:
+      search_criteria:
+        city: Bern
+        propertyType: real-estate #flat
+        radius: 0
+        rentOrBuy: buy
   merge_BE_buy:
     solids:
       cache_properies_from_rest_api:
@@ -51,6 +47,12 @@ solids:
           s3_coordinate:
             bucket: real-estate
             key: staging
+  data_exploration:
+    inputs:
+      delta_path: s3a://real-estate/lake/bronze/property
+      key: minio
+      secret: miniostorage
+      endpoint: http://192.168.46.93:9000
   # SO_rent_flat:
   #   solids:
   #     cache_properies_from_rest_api:

@@ -1,5 +1,4 @@
-##gernal solid pyspark execution
-
+# gernal solid pyspark execution
 
 import dagster_pyspark
 from dagster_aws.s3.solids import S3Coordinate
