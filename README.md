@@ -1,5 +1,5 @@
 <p align="left">
-<a href="https://www.sspaeti.com/blog/category/data-engineering/" target="_blank"><img src="https://www.sspaeti.com/blog/wp-content/uploads/2017/06/sspaeti-a-only-logo_quadrat_transparent.png" height="100"/></a>
+<a href="https://www.sspaeti.com/blog/category/data-engineering/" target="_blank"><img src="https://sspaeti.com/images/sspaeti_quadrat.png" height="100"/></a>
 </p>
 
 # Practical Data Engineering Project
