@@ -122,16 +122,17 @@ def collect_properties(properties):
 )
 def collect_search_criterias(context, search_criterias):
     for search in search_criterias:
+
+        key = (
+            '_'.join(
+                [search['city'], search['rentOrBuy'], search['propertyType'], str(search['radius'])]
+            )
+            .replace("-", "_")
+            .lower()
+        )
+
         yield DynamicOutput(
-            value=search,
-            mapping_key='_'.join(
-                [
-                    search['city'].lower(),
-                    search['rentOrBuy'],
-                    search['propertyType'].replace("-", "_"),
-                    str(search['radius']),
-                ]
-            ),
+            value=search, mapping_key=key,
         )
 
 

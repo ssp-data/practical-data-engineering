@@ -10,6 +10,10 @@ solids:
           propertyType: real-estate
           radius: 0
           rentOrBuy: buy
+        - city: biel-bienne
+          propertyType: real-estate
+          radius: 0
+          rentOrBuy: buy
   merge_staging_to_delta_table:
     solids:
       cache_properies_from_rest_api:
