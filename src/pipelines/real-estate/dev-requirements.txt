@@ -38,6 +38,7 @@ pyarrow
 pandas
 boto3
 pandasql
+pyyaml
 #requirements for comprehensive-real-estate-data-exploration.ipynb
 numpy
 pandasql

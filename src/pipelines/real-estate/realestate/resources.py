@@ -1,4 +1,4 @@
-from collections import namedtuple
+from collections.abc import namedtuple
 
 import sqlalchemy
 
