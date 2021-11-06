@@ -2,7 +2,7 @@
 
 This is the start of the `Data API`:
 
-![Data API](Data API.jpg)
+![Data API](https://github.com/sspaeti-com/practical-data-engineering/blob/main/src/data_api/Data%20API.jpg?raw=true)
 
 
 It's planed to use these open-source tools:
