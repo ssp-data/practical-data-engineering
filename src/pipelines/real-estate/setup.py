@@ -1,0 +1,31 @@
+from setuptools import find_packages, setup
+
+setup(
+    name="realestate",
+    packages=find_packages(exclude=["realestate_tests"]),
+    install_requires=[
+        "dagster==1.5.1",
+        "dagster-pandas==0.21.1",
+        "dagstermill",
+        "dagster-aws==0.21.1",
+        "dagster-postgres==0.21.1",
+        "dagster-spark==0.21.1",
+        "dagster-pyspark==0.21.1",
+        "dagster-webserver",
+        "pyspark",
+        "pyarrow",
+        "pandas",
+        "boto3",
+        "pandasql",
+        "pyyaml",
+        "numpy",
+        "seaborn",
+        "folium",
+        "ijson",
+        "koalas",
+        "scipy",
+        "matplotlib",
+        "scikit-learn",
+    ],
+    extras_require={"dev": ["dagster-webserver", "pytest"]},
+)

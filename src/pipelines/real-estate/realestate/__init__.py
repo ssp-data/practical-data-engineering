@@ -1,22 +1,21 @@
-# from dagster import repository
+from dagster import (
+    Definitions,
+    ScheduleDefinition,
+    define_asset_job,
+    load_assets_from_package_module,
+)
+
+from .pipelines import scrape_realestate, resource_def
 
 
-# def get_realestate_pipelines():
-#     from realestate.pipelines import parallel_pipeline
+daily_refresh_schedule = ScheduleDefinition(
+    job=define_asset_job(name="all_assets_job"), cron_schedule="0 0 * * *"
+)
 
-#     return [
-#         parallel_pipeline,
-#     ]
+print("Loading definitions for environment: ", resources.ENV)
 
-
-# def define_internal_dagit_repository():
-
-#     # Lazy import here to prevent deps issues
-#     @repository
-#     def internal_dagit_repository():
-
-#         pipeline_defs = get_realestate_pipelines()
-
-#         return pipeline_defs
-
-#     return internal_dagit_repository
+defs = Definitions(
+    assets=all_assets,
+    schedules=[daily_refresh_schedule],
+    resources=resource_def[resources.ENV.upper()],
+)
