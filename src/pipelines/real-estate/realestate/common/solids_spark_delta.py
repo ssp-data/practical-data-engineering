@@ -1,20 +1,24 @@
 # gernal op pyspark execution
 
 import dagster_pyspark
-from dagster_aws.s3.ops import S3Coordinate
+
+# from dagster_aws.s3.ops import S3Coordinate
+from .types import S3Coordinate
+
+# new types?
+# from dagster_aws.s3 import S3Resource, S3FileHandle
+
 
 from pyspark.sql.types import StructType, ArrayType
 from pyspark.sql.functions import col, explode_outer
 
 from functools import reduce
 
-from pyspark.sql.functions import explode
 from functools import reduce
-from pyspark.sql import DataFrame, Row
+from pyspark.sql import DataFrame
 
-from sqlalchemy import text
 
-from realestate.common.types_realestate import PropertyDataFrame, JsonType
+from realestate.common.types_realestate import PropertyDataFrame
 from jinja2 import Template
 
 import re
@@ -24,6 +28,7 @@ from botocore.exceptions import NoCredentialsError
 import pandas as pd
 import pandasql as ps
 
+from typing import List
 from dagster import (
     make_python_type_usable_as_dagster_type,
     op,
@@ -35,15 +40,14 @@ from dagster import (
     Out,
     check,
     FileHandle,
-    List,
-    EventMetadataEntry,
     AssetMaterialization,
+    MetadataValue,
 )
 
-from realestate.common.resources import druid_db_info_resource
-from realestate.common.types import DeltaCoordinate, DruidCoordinate, SqlTableName
+from realestate.common.types import DeltaCoordinate, SqlTableName
 
-from dagster import PythonObjectDagsterType, Field, String
+
+from dagster import Field, String
 
 
 # Make pyspark.sql.DataFrame map to dagster_pyspark.DataFrame
@@ -108,11 +112,12 @@ def s3_to_df(context, s3_coordinate: S3Coordinate) -> DataFrame:
 
 
 @op(
-    ins=[In("prop_s3_coordinates", List[S3Coordinate])],
-    out=[Out(S3Coordinate)],
+    # ins=[In("prop_s3_coordinates", List[S3Coordinate])],
+    # out=Out(List[S3Coordinate]),
     required_resource_keys={"pyspark", "s3"},
     description="combine multiple s3 coordinates to one dataframe",
 )
+# def combine_list_of_dfs(context, prop_s3_coordinates: List[S3Coordinate]):
 def combine_list_of_dfs(context, prop_s3_coordinates):
     dfs = []
     for p in prop_s3_coordinates:
@@ -203,7 +208,7 @@ def sql_solid(
     # target_delta_table: DeltaCoordinate,
     # src_df: DataFrame,
     table_name=None,
-    input_defs=None,
+    ins=None,
     # input_defs=[
     #     InputDefinition("target_delta_table", DeltaCoordinate),
     # ],
@@ -223,7 +228,7 @@ def sql_solid(
         function:
             The new SQL solid.
     """
-    input_defs = check.opt_list_param(input_defs, "input_defs", InputDefinition)
+    ins = check.opt_list_param(ins, "input_defs", In)
 
     materialization_strategy_output_types = {  # pylint:disable=C0103
         "table": SqlTableName,
@@ -267,9 +272,9 @@ def sql_solid(
 
     @op(
         name=name,
-        input_defs=input_defs,
-        output_defs=[
-            OutputDefinition(
+        ins=ins,
+        out=[
+            Out(
                 materialization_strategy_output_types[materialization_strategy],
                 description=output_description,
             )
@@ -282,7 +287,7 @@ def sql_solid(
             "sql": sql_statement,
         },
     )
-    def _sql_solid(context, **input_defs):  # pylint: disable=unused-argument
+    def _sql_solid(context, **ins):  # pylint: disable=unused-argument
         """Inner function defining the new solid.
 
         Args:
@@ -293,23 +298,23 @@ def sql_solid(
             DeltaCoordinate:
                 The Delta Table Coordinates where the SQL statements were running against.
         """
-        if input_defs["target_delta_table"] is None:
+        if ins["target_delta_table"] is None:
             raise Exception("Input `target_delta_table` not provided.")
-        if input_defs["input_dataframe"] is None:
+        if ins["input_dataframe"] is None:
             raise Exception("Input `input_dataframe` not provided.")
         ##
         ## Handling delta-table
         ##
         target_delta_path = _get_s3a_path(
-            input_defs["target_delta_table"]["s3_coordinate_bucket"],
-            input_defs["target_delta_table"]["s3_coordinate_key"],
+            ins["target_delta_table"]["s3_coordinate_bucket"],
+            ins["target_delta_table"]["s3_coordinate_key"],
         )
         context.log.info("Target Delta table path: {}".format(target_delta_path))
 
         # prepare colums for merge statement
-        insert_columns = "\n, ".join(input_defs["input_dataframe"].columns)
+        insert_columns = "\n, ".join(ins["input_dataframe"].columns)
         update_columns = "\n, ".join(
-            ["trg." + c + " = src." + c for c in input_defs["input_dataframe"].columns]
+            ["trg." + c + " = src." + c for c in ins["input_dataframe"].columns]
         )
 
         # Set Delta-table path and columns
@@ -331,20 +336,20 @@ def sql_solid(
         ##
 
         # register input df for spark to be available in spark.sql
-        input_defs["input_dataframe"].createOrReplaceTempView("input_dataframe")
+        ins["input_dataframe"].createOrReplaceTempView("input_dataframe")
 
         context.resources.pyspark.spark_session.sql(
             repl_sql_statement
         )  # text() function removed here (this would validate string as valid SQL, but with Delta-Merge does not work)
         yield AssetMaterialization(
-            asset_key=input_defs["target_delta_table"]["table_name"],
+            asset_key=ins["target_delta_table"]["table_name"],
             description="Target Delta table",
-            metadata_entries=[
-                EventMetadataEntry.path(target_delta_path, "delta_table_path")
-            ],
+            metadata={
+                "delta_table_path": MetadataValue.path(target_delta_path),
+            },
         )
 
-        yield Output(value=input_defs["target_delta_table"], output_name="result")
+        yield Output(value=ins["target_delta_table"], output_name="result")
 
     return _sql_solid
 
@@ -366,28 +371,23 @@ merge_property_delta = sql_solid(
     ,
     materialization_strategy="delta_table",
     # table_name="tag",
-    input_defs=[
-        InputDefinition("target_delta_table", DeltaCoordinate),
-        InputDefinition("input_dataframe", DataFrame),
+    ins=[
+        In(dagster_type=DeltaCoordinate),
+        In(dagster_type=DataFrame),
     ],
 )
 
 
 @op(
-    input_defs=[InputDefinition("properties", PropertyDataFrame)],
-    output_defs=[
-        OutputDefinition(
-            name="properties", dagster_type=PropertyDataFrame, is_required=False
-        ),
-    ],
+    out=Out(dagster_type=PropertyDataFrame, is_required=False),
     required_resource_keys={"pyspark", "s3"},
     description="""This will check if property is already downloaded. If so, check if price or other
     columns have changed in the meantime, or if date is very old, download again""",
 )
-def get_changed_or_new_properties(context, properties):
+def get_changed_or_new_properties(context, properties: PropertyDataFrame):
     # prepare ids and fingerprints from fetched properties
-    ids: list = [p["id"] for p in properties]
-    ids: str = ", ".join(ids)
+    ids_tmp: list = [p["id"] for p in properties]
+    ids: str = ", ".join(ids_tmp)
 
     context.log.info("Fetched propertyDetails_id's: [{}]".format(ids))
 
@@ -450,7 +450,7 @@ def get_changed_or_new_properties(context, properties):
         yield Output(changed_properties, "properties")
 
 
-@solid(required_resource_keys={"boto3", "s3"}, description="""Uploads file to s3 """)
+@op(required_resource_keys={"boto3", "s3"}, description="""Uploads file to s3 """)
 def upload_to_s3(
     context, local_file: FileHandle, s3_coordinate: S3Coordinate
 ) -> S3Coordinate:

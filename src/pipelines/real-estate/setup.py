@@ -26,6 +26,7 @@ setup(
         "scipy",
         "matplotlib",
         "scikit-learn",
+        "bs4",
     ],
     extras_require={"dev": ["dagster-webserver", "pytest"]},
 )
