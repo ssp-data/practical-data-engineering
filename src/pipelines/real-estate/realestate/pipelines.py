@@ -8,11 +8,15 @@ from dagster import (
     Out,
     List,
     DynamicOut,
+    DynamicOutput,
     AssetOut,
     fs_io_manager,
 )
 from typing import List
 
+from dagster._utils import dagster_type
+
+from realestate.common import resource_def
 
 # from realestate.common.solids_druid import ingest_druid
 from realestate.common.solids_scraping import (
@@ -25,40 +29,40 @@ from realestate.common.resources import boto3_connection, druid_db_info_resource
 
 # from dagster_aws.s3.solids import S3Coordinate
 from realestate.common.types import DeltaCoordinate
-from realestate.common.types_realestate import PropertyDataFrame, SearchCoordinate
+from realestate.common.types_realestate import PropertyDataFrame, SearchCoordinate, SearchCoordinateType
 
 # from realestate.common.solids_filehandle import json_to_gzip
-# from realestate.common.solids_spark_delta import (
-#     upload_to_s3,
-# get_changed_or_new_properties,
-#     merge_property_delta,
-#     flatten_json,
-#     s3_to_df,
-# )
+from realestate.common.solids_spark_delta import (
+    # upload_to_s3, 
+    get_changed_or_new_properties,
+    # merge_property_delta,
+    # flatten_json,
+    # s3_to_df,
+)
 # from realestate.common.solids_jupyter import data_exploration
 from itertools import chain
 
-from dagster_aws.s3.resources import s3_resource
 
-# from dagster_aws.s3 import s3_plus_default_intermediate_storage_defs
-from dagster_pyspark import pyspark_resource
+
+
 
 # from dagster.core.storage.file_cache import fs_file_cache
 
 # from dagster.core.storage.temp_file_manager import tempfile_resource
-# from dagster_aws.s3.system_storage import s3_plus_default_intermediate_storage_defs
 
 
-# @graph(
-#     description="Downloads full dataset (JSON) from ImmoScout24, cache it, zip it and and upload it to S3",
-#     # input_defs=[In(name="search_criteria", dagster_type=SearchCoordinate)],
-#     # out={"properties": Out(dagster_type=PropertyDataFrame, is_required=False)},
-# )
-# # def list_changed_properties(search_criteria: SearchCoordinate):
+@graph(
+    description="Downloads full dataset (JSON) from ImmoScout24, cache it, zip it and and upload it to S3",
+    # ins={"search_criteria": In(SearchCoordinate)}, #define in function below
+    # out={"properties": Out(dagster_type=PropertyDataFrame, is_required=False)},
+)
+def list_changed_properties(search_criteria: SearchCoordinate):
 # def list_changed_properties():
-#     return get_changed_or_new_properties(
-#         list_props_immo24(searchCriteria=search_criteria)
-#     )
+    return get_changed_or_new_properties(
+        list_props_immo24(searchCriteria=search_criteria)
+    )
+
+
 
 
 # @graph(
@@ -87,52 +91,45 @@ from dagster_pyspark import pyspark_resource
 #     return list(chain.from_iterable(properties))
 
 
-# @op(
-#     description="Collects Search Coordinates and spawns dynamically Pipelines downstream.",
-#     # input_defs=[In("search_criterias", List[SearchCoordinate])],
-#     ins={"search_criterias": In("search_criterias", List[SearchCoordinate])},
-#     outs=[DynamicOutDefinition(SearchCoordinate)],
-# )
-# def collect_search_criterias(context, search_criterias):
-#     for search in search_criterias:
-#         key = (
-#             "_".join(
-#                 [
-#                     search["city"],
-#                     search["rentOrBuy"],
-#                     search["propertyType"],
-#                     str(search["radius"]),
-#                 ]
-#             )
-#             .replace("-", "_")
-#             .lower()
-#         )
+@op(
+    description="Collects Search Coordinates and spawns dynamically Pipelines downstream.",
+    # ins={"search_criterias": In("search_criterias", List[SearchCoordinate])},
+    # out={"sarch_coordinates": DynamicOutput(SearchCoordinate)},
+    out=DynamicOut()
+)
+def collect_search_criterias(context, search_criterias):
+    for search in search_criterias:
+        key = (
+            "_".join(
+                [
+                    search["city"],
+                    search["rentOrBuy"],
+                    search["propertyType"],
+                    str(search["radius"]),
+                ]
+            )
+            .replace("-", "_")
+            .lower()
+        )
 
-#         yield DynamicOut(
-#             value=search,
-#             mapping_key=key,
-#         )
-
-
-@op
-def test():
-    print("test")
+        yield DynamicOut(
+            value=search,
+            mapping_key=key,
+        )
 
 
 @job(
-    config=config_from_files(
-        [
-            file_relative_path(__file__, "config_environments/local_base.yaml"),
-            file_relative_path(__file__, "config_pipelines/scrape_realestate.yaml"),
-        ]
-    ),
+    resource_defs=resource_def["local"],
+    # config=config_from_files(
+    #     [
+    #         file_relative_path(__file__, "config_environments/local_base.yaml"),
+    #         file_relative_path(__file__, "config_pipelines/scrape_realestate.yaml"),
+    #     ]
+    # ),
 )
 def scrape_realestate():
-    test()
 
-    # list_changed_properties
-
-    # search_criterias = collect_search_criterias().map(list_changed_properties)
+    search_criterias = collect_search_criterias().map(list_changed_properties)
 
     # data_exploration(
     #     merge_staging_to_delta_table_composite.alias("merge_staging_to_delta_table")(
@@ -140,17 +137,3 @@ def scrape_realestate():
     #     )
     # )
 
-
-resource_def = {
-    "local": {
-        "pyspark": pyspark_resource,
-        "s3": s3_resource,
-        # 'druid': druid_db_info_resource,
-        "boto3": boto3_connection,
-        # "file_cache": fs_file_cache,
-        # "db_info": postgres_db_info_resource,
-        # "io_manager": default
-        "io_manager": fs_io_manager,
-    },
-    # intermediate_storage_defs=s3_plus_default_intermediate_storage_defs,
-}

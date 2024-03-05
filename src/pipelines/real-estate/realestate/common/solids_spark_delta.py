@@ -228,7 +228,7 @@ def sql_solid(
         function:
             The new SQL solid.
     """
-    ins = check.opt_list_param(ins, "input_defs", In)
+    # ins = . opt_list_param(ins, "ins", In)
 
     materialization_strategy_output_types = {  # pylint:disable=C0103
         "table": SqlTableName,
@@ -273,12 +273,10 @@ def sql_solid(
     @op(
         name=name,
         ins=ins,
-        out=[
-            Out(
+        out=Out(
                 materialization_strategy_output_types[materialization_strategy],
                 description=output_description,
-            )
-        ],
+            ),
         description=description,
         required_resource_keys={"pyspark"},
         # tags={"kind": "sql", "sql": sql_statement},
@@ -371,10 +369,8 @@ merge_property_delta = sql_solid(
     ,
     materialization_strategy="delta_table",
     # table_name="tag",
-    ins=[
-        In(dagster_type=DeltaCoordinate),
-        In(dagster_type=DataFrame),
-    ],
+    ins = {"delta_coordinate": In(dagster_type=DeltaCoordinate),
+    "df": In(dagster_type=DataFrame)}
 )
 
 

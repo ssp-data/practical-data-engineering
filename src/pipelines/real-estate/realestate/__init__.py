@@ -8,14 +8,17 @@ from dagster import (
 from .pipelines import scrape_realestate, resource_def
 
 
-daily_refresh_schedule = ScheduleDefinition(
-    job=define_asset_job(name="all_assets_job"), cron_schedule="0 0 * * *"
-)
 
-print("Loading definitions for environment: ", resources.ENV)
+# from .common import RESOURCES_LOCAL
 
-defs = Definitions(
-    assets=all_assets,
-    schedules=[daily_refresh_schedule],
-    resources=resource_def[resources.ENV.upper()],
-)
+# daily_refresh_schedule = ScheduleDefinition(
+#     job=define_asset_job(name="all_assets_job"), cron_schedule="0 0 * * *"
+# )
+
+# print("Loading definitions for environment: ", resources.ENV)
+
+# defs = Definitions(
+#     assets=all_assets,
+#     schedules=[daily_refresh_schedule],
+#     resources=resource_def[resources.ENV.upper()],
+# )

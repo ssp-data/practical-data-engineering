@@ -1,4 +1,4 @@
-''' Solids for Apache Druid '''
+''' Op for Apache Druid '''
 
 from .types import DeltaCoordinate, DruidCoordinate
 
@@ -6,10 +6,9 @@ import requests
 import json
 
 from dagster import (
-    solid,
+    op,
     Field,
     String,
-    Int,
 )
 
 
@@ -34,7 +33,7 @@ def _druid_ingest_spec_replacer(
     return spec
 
 
-@solid(
+@op(
     required_resource_keys={'pyspark', 's3', 'druid'},
     description='''This ingests data from your input delta table (sitting on s3 bucket) into druid.
 

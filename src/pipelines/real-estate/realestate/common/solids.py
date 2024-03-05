@@ -1,9 +1,9 @@
-from dagster import solid, OutputDefinition, Optional, Bool
+from dagster import op, Optional, Bool, Out
 
 
-@solid(
-    output_defs=[OutputDefinition(Optional[float], name="foo_output", is_required=False),]
+@op(
+    out={"foo_output": Out(Optional[float], is_required=False)},
 )
-def condition_check_bool(context, condition: Bool):
+def condition_check_bool(condition: Bool):
     if condition:
-        yield Output(1.0, 'foo_output')
+        yield 1.0
