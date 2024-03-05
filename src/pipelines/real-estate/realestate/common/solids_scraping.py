@@ -59,7 +59,7 @@ def list_props_immo24(context, searchCriteria: SearchCoordinate) -> PropertyData
 
     # find max page
     url = (
-        context.solid_config["immo24_search_url_en"]
+        context.op_config["immo24_search_url_en"]
         + searchCriteria["rentOrBuy"]
         + "/city-"
         + searchCriteria["city"]
@@ -71,7 +71,7 @@ def list_props_immo24(context, searchCriteria: SearchCoordinate) -> PropertyData
     context.log.info("Search url: {}".format(url))
     html = requests.get(url)
     soup = BeautifulSoup(html.text, "html.parser")
-    buttons = soup.findAll("button")
+    buttons = soup.findAll("a")
     p = []
     for item in buttons:
         if len(item.text) <= 3 & len(item.text) != 0:
@@ -86,7 +86,7 @@ def list_props_immo24(context, searchCriteria: SearchCoordinate) -> PropertyData
     propertyPrice = []
     for i in range(1, lastPage + 1):
         url = (
-            context.solid_config["immo24_main_url_en"]
+            context.op_config["immo24_main_url_en"]
             + searchCriteria["propertyType"]
             + "/"
             + searchCriteria["rentOrBuy"]
@@ -105,11 +105,11 @@ def list_props_immo24(context, searchCriteria: SearchCoordinate) -> PropertyData
         soup = BeautifulSoup(html.text, "html.parser")
         links = soup.findAll("a", href=True)
         hrefs = [item["href"] for item in links]
-        hrefs_filtered = [href for href in hrefs if href.startswith("/en/d")]
+        hrefs_filtered = [href for href in hrefs if href.startswith("/" + searchCriteria['rentOrBuy'] + "/")]
         ids += [re.findall("\d+", item)[0] for item in hrefs_filtered]
 
         # get normalized price without REST-call
-        h3 = soup.findAll("h3")
+        h3 = soup.findAll("span")
         for h in h3:
             text = h.getText()
             if "CHF" in text or "EUR" in text:
@@ -172,7 +172,7 @@ def cache_properies_from_rest_api(
     date_time = datetime.now().strftime("%y%m%d_%H%M%S")
     for p in properties:
         # Is it possible to do a range instead of each seperately?
-        json_prop = requests.get(context.solid_config["immo24_api_en"] + p["id"]).json()
+        json_prop = requests.get(context.op_config["immo24_api_en"] + p["id"]).json()
 
         # add metadata if flat, house, detatched-house, etc.
         json_prop["propertyDetails"]["propertyType"] = p["propertyType"]
