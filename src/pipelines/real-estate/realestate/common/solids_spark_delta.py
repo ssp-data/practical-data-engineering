@@ -86,7 +86,7 @@ Characters (within quotations): "`{chars}`"
 def s3_to_df(context, s3_coordinate: S3Coordinate) -> DataFrame:
     context.log.debug(
         "AWS_KEY: {access} - Secret: {secret})".format(
-            access=os.environ["MINIO_ACCESS_KEY"], secret=os.environ["MINIO_SECRET_KEY"]
+            access=os.environ["MINIO_ROOT_USER"], secret=os.environ["MINIO_ROOT_PASSWORD"]
         )
     )
     # findspark.init(spark_home='/path/to/spark/lib/')

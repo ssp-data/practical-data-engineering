@@ -29,21 +29,19 @@ from realestate.common.resources import boto3_connection, druid_db_info_resource
 
 # from dagster_aws.s3.solids import S3Coordinate
 from realestate.common.types import DeltaCoordinate
-from realestate.common.types_realestate import PropertyDataFrame, SearchCoordinate, SearchCoordinateType
+from realestate.common.types_realestate import PropertyDataFrame, SearchCoordinate
 
 # from realestate.common.solids_filehandle import json_to_gzip
 from realestate.common.solids_spark_delta import (
-    # upload_to_s3, 
+    # upload_to_s3,
     get_changed_or_new_properties,
     # merge_property_delta,
     # flatten_json,
     # s3_to_df,
 )
+
 # from realestate.common.solids_jupyter import data_exploration
 from itertools import chain
-
-
-
 
 
 # from dagster.core.storage.file_cache import fs_file_cache
@@ -57,12 +55,10 @@ from itertools import chain
     # out={"properties": Out(dagster_type=PropertyDataFrame, is_required=False)},
 )
 def list_changed_properties(search_criteria: SearchCoordinate):
-# def list_changed_properties():
+    # def list_changed_properties():
     return get_changed_or_new_properties(
         list_props_immo24(searchCriteria=search_criteria)
     )
-
-
 
 
 # @graph(
@@ -95,9 +91,9 @@ def list_changed_properties(search_criteria: SearchCoordinate):
     description="Collects Search Coordinates and spawns dynamically Pipelines downstream.",
     # ins={"search_criterias": In("search_criterias", List[SearchCoordinate])},
     # out={"sarch_coordinates": DynamicOutput(SearchCoordinate)},
-    out=DynamicOut()
+    out=DynamicOut(),
 )
-def collect_search_criterias(context, search_criterias):
+def collect_search_criterias(context, search_criterias: List[SearchCoordinate]):
     for search in search_criterias:
         key = (
             "_".join(
@@ -112,23 +108,22 @@ def collect_search_criterias(context, search_criterias):
             .lower()
         )
 
-        yield DynamicOut(
-            value=search,
+        yield DynamicOutput(
+            search,
             mapping_key=key,
         )
 
 
 @job(
     resource_defs=resource_def["local"],
-    # config=config_from_files(
-    #     [
-    #         file_relative_path(__file__, "config_environments/local_base.yaml"),
-    #         file_relative_path(__file__, "config_pipelines/scrape_realestate.yaml"),
-    #     ]
-    # ),
+    config=config_from_files(
+        [
+            file_relative_path(__file__, "config_environments/local_base.yaml"),
+            file_relative_path(__file__, "config_pipelines/scrape_realestate.yaml"),
+        ]
+    ),
 )
 def scrape_realestate():
-
     search_criterias = collect_search_criterias().map(list_changed_properties)
 
     # data_exploration(
@@ -136,4 +131,3 @@ def scrape_realestate():
     #         collect_properties(search_criterias.collect())
     #     )
     # )
-
