@@ -13,12 +13,6 @@ context_cache = build_op_context(
     }
 )
 
-
-def test_op_cache_properies_from_rest_api():
-    properties = [4000830789]
-
-    assert cache_properies_from_rest_api(context_cache, properties, "test").is_file, "File is not created"
-
 context = build_op_context(
     op_config={
         "remove_columns": [
@@ -29,6 +23,13 @@ context = build_op_context(
         ],
     }
 )
+
+
+def test_op_cache_properies_from_rest_api():
+    properties = [4000830789]
+
+    assert cache_properies_from_rest_api(context_cache, properties, "test").is_file, "File is not created"
+
 
 
 def test_op_property_json():
