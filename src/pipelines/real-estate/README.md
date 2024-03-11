@@ -24,8 +24,7 @@ This Practical Data Engineering project addresses common data engineering challe
 - Change Data Capture (CDC) mechanisms for efficient data updates
 - Utilizing [MinIO](https://github.com/minio/minio) as an S3-Gateway for cloud-agnostic storage
 - Implementing UPSERTs and ACID transactions with [Delta Lake](https://delta.io/) 
-- Integrating [Jupyter Notebooks](https://github.com/jupyter/notebook) for data science tasks
-- Visualizing data with [Apache Superset](https://github.com/apache/superset)
+- Integrating [Jupyter Notebooks](https://github.com/jupyter/notebook) for data science tasks Visualizing data with [Apache Superset](https://github.com/apache/superset)
 - Orchestrating workflows with [Dagster](https://github.com/dagster-io/dagster/)
 - Deploying on [Kubernetes](https://github.com/kubernetes/kubernetes) for scalability and cloud-agnostic architecture
 
@@ -81,6 +80,8 @@ dagster dev
 - [Building a Data Engineering Project in 20 Minutes](https://www.ssp.sh/blog/data-engineering-project-in-twenty-minutes/): Access the full blog post detailing the project's development, challenges, and solutions.
 - [DevOps Repositories](https://github.com/sspaeti-com/data-engineering-devops): Explore the setup for Druid, MinIO and other components.
 - [Business Intelligence Meets Data Engineering with Emerging Technologies](https://www.ssp.sh/blog/business-intelligence-meets-data-engineering/): An earlier post that dives into some of the technologies used in this project.
+- [Data Engineering Vault](https://vault.ssp.sh/): A collection of resources, tutorials, and guides for data engineering projects.
+- [Open-Source Data Engineering Projects](https://www.ssp.sh/brain/open-source-data-engineering-projects/): A curated list of open-source data engineering projects to explore.
 
 ## 📣 Feedback
 Your feedback is invaluable to improve this project. If you've built your project based on this repository or have suggestions, please let me know through creating an Issues or a Pull Request directly.
