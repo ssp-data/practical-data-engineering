@@ -419,18 +419,21 @@ def flatten_json_with_pandas(context, json_data) -> pd.DataFrame:
 
 
 @op(
-    out=Out(dagster_type=PropertyDataFrame, is_required=False),
     required_resource_keys={"s3"},
     description="""This will check if property is already downloaded. If so, check if price or other
     columns have changed in the meantime, or if date is very old, download again""",
+    out={"properties": Out(dagster_type=PropertyDataFrame, is_required=False, io_manager_key="fs_io_manager")},
+
 )
-def get_changed_or_new_properties(context, properties: PropertyDataFrame, property_table: pd.DataFrame):
+def get_changed_or_new_properties(context, properties: PropertyDataFrame, property_table: pd.DataFrame) -> PropertyDataFrame:
     # prepare ids and fingerprints from fetched properties
     ids_tmp: list = [p["id"] for p in properties]
     ids: str = ", ".join(ids_tmp)
 
     context.log.info("Fetched propertyDetails_id's: [{}]".format(ids))
+    context.log.debug(f"type: property_table: {type(property_table)} and lenght {len(property_table)}")
 
+    cols_props = ["propertyDetails_id", "fingerprint"]
     cols_PropertyDataFrame = [
         "id",
         "fingerprint",
@@ -450,27 +453,30 @@ def get_changed_or_new_properties(context, properties: PropertyDataFrame, proper
             WHERE propertyDetails_id IN ( {ids} )
             """
     result_df = ps.sqldf(query, locals())
+    context.log.debug(f"lenght: result_df: {len(result_df)}")
+
     # get a list selected colum: `property_ids` and its fingerprint
     existing_props = result_df[["propertyDetails_id", "fingerprint"]].values.tolist()
 
-
     # Convert dict into pandas dataframe
+    pd_existing_props = pd.DataFrame(existing_props, columns=cols_props)
     pd_properties = pd.DataFrame(properties, columns=cols_PropertyDataFrame)
 
     # debugging
-    # print(existing_props)
-    # print(pd_properties)
+    context.log.debug(f"pd_existing_props: {pd_existing_props}, type: {type(pd_existing_props)}")
+    context.log.debug(f"pd_properties: {pd_properties}")
 
     # select new or changed once
     df_changed = ps.sqldf(
         """
         SELECT p.id, p.fingerprint, p.is_prefix, p.rentOrBuy, p.city, p.propertyType, p.radius, p.last_normalized_price
-        FROM pd_properties p LEFT OUTER JOIN existing_props e
+        FROM pd_properties p LEFT OUTER JOIN pd_existing_props e
             ON p.id = e.propertyDetails_id
             WHERE p.fingerprint != e.fingerprint
                 OR e.fingerprint IS NULL
-        """
+        """, locals()
     )
+    context.log.debug(f"lenght: df_changed: {len(df_changed)}")
     if df_changed.empty:
         context.log.info("No property of [{}] changed".format(ids))
     else:

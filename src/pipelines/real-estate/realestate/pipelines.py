@@ -56,8 +56,10 @@ from itertools import chain
 # from dagster.core.storage.temp_file_manager import tempfile_resource
 
 
-@op(description="Reads the Delta Table from S3")
-def property_table() -> pd.DataFrame:
+@op(
+    description="Reads the Delta Table from S3", out=Out(io_manager_key="fs_io_manager")
+)
+def property_table(context) -> pd.DataFrame:
     # should be with SourceAsset, but didnt' work: property_table = SourceAsset(key="s3a://real-estate/test/property")
 
     MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minio")
@@ -73,11 +75,24 @@ def property_table() -> pd.DataFrame:
         "AWS_S3_ALLOW_UNSAFE_RENAME": "true",
     }
 
-    s3_path_property = "s3a://real-estate/test/property"
-    # s3_path_property = "s3a://real-estate/lake/bronze/property"
+    # s3_path_property = "s3a://real-estate/test/property"
+    s3_path_property = "s3a://real-estate/lake/bronze/property"
     dt = DeltaTable(s3_path_property, storage_options=storage_options)
 
-    return dt.to_pyarrow_dataset().to_table().to_pandas()
+    df = dt.to_pyarrow_dataset().to_table().to_pandas()
+    # HACK: just to make it work the first time
+    remove_columns = [
+        "propertyDetails_images",
+        "propertyDetails_pdfs",
+        "propertyDetails_commuteTimes_defaultPois_transportations",
+        "viewData_viewDataWeb_webView_structuredData",
+    ]
+    df = df.drop(columns=remove_columns, errors="ignore")
+    context.log.info(f"df type: {type(df)}")
+    context.log.info(f"Removing columns: {remove_columns}")
+    context.log.info(f"df columns: {df.columns}")
+
+    return df
 
 
 # @asset
@@ -117,13 +132,13 @@ def list_changed_properties(search_criteria: SearchCoordinate):
 #     )
 
 
-# @op(
-#     description="""Collect a List of `PropertyDataFrame` from different cities to a single `PropertyDataFrame` List""",
-#     ins=List[In(name="properties", dagster_type=List(PropertyDataFrame))],
-#     outs=[Out("properties", dagster_type=PropertyDataFrame)],
-# )
-# def collect_properties(properties):
-#     return list(chain.from_iterable(properties))
+@op(
+    description="""Collect a List of `PropertyDataFrame` from different cities to a single `PropertyDataFrame` List""",
+    # ins=List[In(name="properties", dagster_type=List(PropertyDataFrame))],
+    # outs=Out("properties", dagster_type=PropertyDataFrame)],
+)
+def collect_properties(properties: List[PropertyDataFrame]) -> PropertyDataFrame:  # type: ignore
+    return list(chain.from_iterable(properties))
 
 
 @op(
