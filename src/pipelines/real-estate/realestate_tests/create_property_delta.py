@@ -58,13 +58,13 @@ def test_create_test_delta_table():
 
 def test_create_test_delta_table_dummy_df():
     df = pd.DataFrame({"x": [1, 2, 3]})
-    dt = write_deltalake(
+    write_deltalake(
         "s3a://real-estate/test/test1",
         df,
         storage_options=storage_options,
         mode="overwrite",
     )
-    print(f"wrote delta table test1")
+    print("wrote delta table test1")
     assert True
 
 # def flatten_json(json_data):

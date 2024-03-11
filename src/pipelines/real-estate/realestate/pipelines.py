@@ -11,8 +11,14 @@ from dagster import (
     DynamicOutput,
     AssetOut,
     fs_io_manager,
+    asset,
+    SourceAsset,
+    TableSchema,
 )
 from typing import List
+
+import os
+import pandas as pd
 
 from dagster._utils import dagster_type
 
@@ -39,14 +45,46 @@ from realestate.common.solids_spark_delta import (
     # flatten_json,
     # s3_to_df,
 )
+from deltalake import DeltaTable
+
 
 # from realestate.common.solids_jupyter import data_exploration
 from itertools import chain
 
 
 # from dagster.core.storage.file_cache import fs_file_cache
-
 # from dagster.core.storage.temp_file_manager import tempfile_resource
+
+
+@op(description="Reads the Delta Table from S3")
+def property_table() -> pd.DataFrame:
+    # should be with SourceAsset, but didnt' work: property_table = SourceAsset(key="s3a://real-estate/test/property")
+
+    MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minio")
+    MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "miniostorage")
+    MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://127.0.0.1:9000")
+
+    storage_options = {
+        "AWS_ACCESS_KEY_ID": MINIO_ACCESS_KEY,
+        "AWS_SECRET_ACCESS_KEY": MINIO_SECRET_KEY,
+        "AWS_ENDPOINT_URL": MINIO_ENDPOINT,
+        "AWS_ALLOW_HTTP": "true",
+        # "AWS_REGION": AWS_REGION, #do not use
+        "AWS_S3_ALLOW_UNSAFE_RENAME": "true",
+    }
+
+    s3_path_property = "s3a://real-estate/test/property"
+    # s3_path_property = "s3a://real-estate/lake/bronze/property"
+    dt = DeltaTable(s3_path_property, storage_options=storage_options)
+
+    return dt.to_pyarrow_dataset().to_table().to_pandas()
+
+
+# @asset
+# def property() -> pd.DataFrame:
+#     return pd.read_json(
+#         "/Users/sspaeti/Documents/minio_bak/real-estate/src/azure-blob/scrapes/immo24ads__196b0de5-5511-4e0d-ae0f-be5d03bc943e",
+#     )
 
 
 @graph(
@@ -57,7 +95,8 @@ from itertools import chain
 def list_changed_properties(search_criteria: SearchCoordinate):
     # def list_changed_properties():
     return get_changed_or_new_properties(
-        list_props_immo24(searchCriteria=search_criteria)
+        properties=list_props_immo24(searchCriteria=search_criteria),
+        property_table=property_table(),
     )
 
 
@@ -91,7 +130,8 @@ def list_changed_properties(search_criteria: SearchCoordinate):
     description="Collects Search Coordinates and spawns dynamically Pipelines downstream.",
     # ins={"search_criterias": In("search_criterias", List[SearchCoordinate])},
     # out={"sarch_coordinates": DynamicOutput(SearchCoordinate)},
-    out=DynamicOut(),
+    required_resource_keys={"fs_io_manager"},
+    out=DynamicOut(io_manager_key="fs_io_manager"),
 )
 def collect_search_criterias(context, search_criterias: List[SearchCoordinate]):
     for search in search_criterias:

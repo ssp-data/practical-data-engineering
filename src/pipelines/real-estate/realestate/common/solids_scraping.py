@@ -52,6 +52,9 @@ from .types_realestate import PropertyDataFrame, SearchCoordinate, JsonType
             ),
         ),
     },
+    required_resource_keys={"fs_io_manager"},
+    out=Out(io_manager_key="fs_io_manager"),
+
 )
 def list_props_immo24(context, searchCriteria: SearchCoordinate) -> PropertyDataFrame:
     # propertyType : str, rentOrBuys : str, radius : int, cities : str)

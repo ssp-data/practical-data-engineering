@@ -5,6 +5,10 @@ from delta_spark import merge, TableMerger
 from .types import S3Coordinate
 
 
+# TODO: checkout Delta Dagster IO manager: https://github.com/delta-io/delta-rs/commit/fe36b136161fdf019b821e154d83f457795e8579
+# https://docs.dagster.io/integrations/deltalake/using-deltalake-with-dagster
+
+
 
 class delta_lake_resource(ConfigurableResource):
     minio_access_key: str
