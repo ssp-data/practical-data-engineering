@@ -10,12 +10,16 @@ ops:
         #   propertyType: real-estate
         #   radius: 0
         #   rentOrBuy: buy
-        - city: biel-bienne
+        - city: twann
           propertyType: real-estate
           radius: 0
           rentOrBuy: buy
+        # - city: biel-bienne
+        #   propertyType: real-estate
+        #   radius: 0
+        #   rentOrBuy: buy
   # merge_staging_to_delta_table:
-  #   solids:
+  #   ops:
   #     cache_properies_from_rest_api:
   #       inputs:
   #         target_key: /tmp/dagster/file_cache
@@ -26,11 +30,6 @@ ops:
   #           s3_coordinate_bucket: real-estate
   #           s3_coordinate_key: lake/bronze/property
   #           table_name: property
-  #     upload_to_s3:
-  #       inputs:
-  #         s3_coordinate:
-  #           bucket: real-estate
-  #           key: staging
   # data_exploration:
   #   inputs:
   #     # delta_path: s3a://real-estate/lake/bronze/property

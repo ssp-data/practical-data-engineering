@@ -1,12 +1,16 @@
 """ Scraping Ops used for the Real-Estate project """
 
+from typing import Any, Generator
 import requests
 import re
+import os
 import datetime
 from bs4 import BeautifulSoup
 from datetime import datetime
 import json
 
+from contextlib import closing
+import io
 import gzip
 import shutil
 
@@ -21,9 +25,11 @@ from dagster import (
     Field,
     String,
     FileHandle,
+    LocalFileHandle,
     ExpectationResult,
     MetadataValue,
     Out,
+    Output,
 )
 
 
@@ -152,13 +158,12 @@ def list_props_immo24(context, searchCriteria: SearchCoordinate) -> PropertyData
 
 
 @op(
-    description="Downloads full dataset (JSON) of property against API",
-    # output_defs=[OutputDefinition(JsonType)],
-    required_resource_keys={"file_cache"},
+    description="Downloads and cache full datasets (JSON) as gzip to avoid re-downloading same properties against API. If file already exists, it will not re-downloaded again.",
+    required_resource_keys={"file_manager"},
     config_schema={
         "immo24_api_en": Field(
             String,
-            default_value="https://rest-api.immoscout24.ch/v4/en/properties/",
+            default_value="https://api.immoscout24.ch/listings/listing/",
             is_required=False,
             description=(
                 """Main URL to start the search with (propertyType unspecific).
@@ -166,18 +171,24 @@ def list_props_immo24(context, searchCriteria: SearchCoordinate) -> PropertyData
             ),
         )
     },
+    out={"local_file_handle": Out(LocalFileHandle, io_manager_key="fs_io_manager")},
 )
 def cache_properies_from_rest_api(
-    context, properties: PropertyDataFrame, target_key: String
-) -> FileHandle:
+    context, properties: PropertyDataFrame
+) -> Generator[Any, None, None]:
     property_list = []
     date = datetime.today().strftime("%y%m%d")
     date_time = datetime.now().strftime("%y%m%d_%H%M%S")
+
     for p in properties:
+
+        context.log.debug(f"Request sent to {context.op_config['immo24_api_en'] + p['id']}")
         # Is it possible to do a range instead of each seperately?
         json_prop = requests.get(context.op_config["immo24_api_en"] + p["id"]).json()
 
         # add metadata if flat, house, detatched-house, etc.
+        if "propertyDetails" not in json_prop:
+            json_prop["propertyDetails"] = {}
         json_prop["propertyDetails"]["propertyType"] = p["propertyType"]
         json_prop["propertyDetails"]["isBuyRent"] = p["rentOrBuy"]
 
@@ -202,32 +213,24 @@ def cache_properies_from_rest_api(
         + property_list[0]["propertyDetails"]["propertyType"]
         + ".gz"
     )
-    target_key = target_key + "/" + filename
 
     """caching to file
     """
-    file_cache = context.resources.file_cache
-    target_file_handle = file_cache.get_file_handle(target_key)
+    local_file_manager = context.resources.file_manager
 
-    if file_cache.overwrite or not file_cache.has_file_object(target_key):
-        json_zip_writer(property_list, target_key)
-        context.log.info(
-            "File handle written at : {}".format(target_file_handle.path_desc)
-        )
-    else:
-        context.log.info(
-            "File {} already present in cache".format(target_file_handle.path_desc)
-        )
+    # Create a BytesIO object to hold the gzipped data temporarily
+    with closing(io.BytesIO()) as temp_file_obj:
+        json_zip_writer(property_list, temp_file_obj)
+        
+        # Reset the file pointer to the beginning after writing
+        temp_file_obj.seek(0)
+        
+        # Use LocalFileManager to write the gzipped data to a file
+        file_handle = local_file_manager.write(temp_file_obj, mode="wb", ext="gz")
 
-    yield ExpectationResult(
-        success=file_cache.has_file_object(target_key),
-        label="file_handle_exists",
-        metadata={
-            target_key: MetadataValue.path(target_file_handle.path_desc),
-        },
-    )
+        context.log.info(f"File handle written at : {file_handle.path}")
+        yield Output(value=file_handle, output_name="local_file_handle")
 
-    yield Out(target_file_handle)
 
 
 @op(description="Get price from a property via API Call")

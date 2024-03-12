@@ -6,6 +6,7 @@ from dagster import (
     graph,
     In,
     Out,
+    GraphOut,
     List,
     DynamicOut,
     DynamicOutput,
@@ -23,6 +24,7 @@ import pandas as pd
 from dagster._utils import dagster_type
 
 from realestate.common import resource_def
+from realestate.common.helper_functions import reading_delta_table
 
 # from realestate.common.solids_druid import ingest_druid
 from realestate.common.solids_scraping import (
@@ -41,12 +43,10 @@ from realestate.common.types_realestate import PropertyDataFrame, SearchCoordina
 from realestate.common.solids_spark_delta import (
     # upload_to_s3,
     get_changed_or_new_properties,
-    # merge_property_delta,
-    # flatten_json,
-    # s3_to_df,
+    merge_property_delta,
+    flatten_json,
+    s3_to_df,
 )
-from deltalake import DeltaTable
-
 
 # from realestate.common.solids_jupyter import data_exploration
 from itertools import chain
@@ -61,37 +61,11 @@ from itertools import chain
 )
 def property_table(context) -> pd.DataFrame:
     # should be with SourceAsset, but didnt' work: property_table = SourceAsset(key="s3a://real-estate/test/property")
-
-    MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minio")
-    MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "miniostorage")
-    MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://127.0.0.1:9000")
-
-    storage_options = {
-        "AWS_ACCESS_KEY_ID": MINIO_ACCESS_KEY,
-        "AWS_SECRET_ACCESS_KEY": MINIO_SECRET_KEY,
-        "AWS_ENDPOINT_URL": MINIO_ENDPOINT,
-        "AWS_ALLOW_HTTP": "true",
-        # "AWS_REGION": AWS_REGION, #do not use
-        "AWS_S3_ALLOW_UNSAFE_RENAME": "true",
-    }
-
+    
     # s3_path_property = "s3a://real-estate/test/property"
     s3_path_property = "s3a://real-estate/lake/bronze/property"
-    dt = DeltaTable(s3_path_property, storage_options=storage_options)
-
-    df = dt.to_pyarrow_dataset().to_table().to_pandas()
-    # HACK: just to make it work the first time
-    remove_columns = [
-        "propertyDetails_images",
-        "propertyDetails_pdfs",
-        "propertyDetails_commuteTimes_defaultPois_transportations",
-        "viewData_viewDataWeb_webView_structuredData",
-    ]
-    df = df.drop(columns=remove_columns, errors="ignore")
-    context.log.info(f"df type: {type(df)}")
-    context.log.info(f"Removing columns: {remove_columns}")
-    context.log.info(f"df columns: {df.columns}")
-
+    
+    df, dt = reading_delta_table(context, s3_path_property)
     return df
 
 
@@ -115,30 +89,28 @@ def list_changed_properties(search_criteria: SearchCoordinate):
     )
 
 
-# @graph(
-#     description="""This will take the list of properties, downloads the full dataset (JSON) from ImmoScout24,
-#     cache it locally to avoid scraping again in case of error. The cache will be zipped and uploaded to S3.
-#     From there the JSON will be flatten and merged (with schemaEvloution=True) into the Delta Table""",
-#     input_defs=[In(name="properties", dagster_type=PropertyDataFrame)],
-#     output_defs=[
-#         Out(name="delta_coordinate", dagster_type=DeltaCoordinate, is_required=False)
-#     ],
-# )
-# def merge_staging_to_delta_table_composite(properties):
-#     prop_s3_coordinate = upload_to_s3(cache_properies_from_rest_api(properties))
-#     # return assets for property
-#     return merge_property_delta(
-#         input_dataframe=flatten_json(s3_to_df(prop_s3_coordinate))
-#     )
+@graph(
+    description="""This will take the list of properties, downloads the full dataset (JSON) from ImmoScout24,
+    cache it locally to avoid scraping again in case of error. The cache will be zipped and uploaded to S3.
+    From there the JSON will be flatten and merged (with schemaEvloution=True) into the Delta Table""",
+    # input_defs=[In(name="properties", dagster_type=PropertyDataFrame)],
+    out={"delta_coordinate": GraphOut()},
+)
+def merge_staging_to_delta_table_composite(properties: PropertyDataFrame) -> DeltaCoordinate:
+    file_handle = cache_properies_from_rest_api(properties)
+
+    return merge_property_delta(
+        input_dataframe=flatten_json(file_handle)
+    )
 
 
 @op(
     description="""Collect a List of `PropertyDataFrame` from different cities to a single `PropertyDataFrame` List""",
-    # ins=List[In(name="properties", dagster_type=List(PropertyDataFrame))],
-    # outs=Out("properties", dagster_type=PropertyDataFrame)],
+    out={"properties": Out(dagster_type=PropertyDataFrame, io_manager_key="fs_io_manager")},
 )
-def collect_properties(properties: List[PropertyDataFrame]) -> PropertyDataFrame:  # type: ignore
+def collect_properties(properties: List[PropertyDataFrame]) -> List[PropertyDataFrame]:  # type: ignore
     return list(chain.from_iterable(properties))
+
 
 
 @op(
@@ -180,6 +152,10 @@ def collect_search_criterias(context, search_criterias: List[SearchCoordinate]):
 )
 def scrape_realestate():
     search_criterias = collect_search_criterias().map(list_changed_properties)
+
+    merge_staging_to_delta_table_composite.alias("merge_staging_to_delta_table")(
+        collect_properties(search_criterias.collect())
+    )
 
     # data_exploration(
     #     merge_staging_to_delta_table_composite.alias("merge_staging_to_delta_table")(

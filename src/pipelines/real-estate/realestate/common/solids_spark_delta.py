@@ -17,6 +17,7 @@ from pandas import DataFrame
 
 
 from realestate.common.types_realestate import PropertyDataFrame
+from realestate.common.helper_functions import reading_delta_table
 from jinja2 import Template
 
 import re
@@ -25,9 +26,11 @@ from botocore.exceptions import NoCredentialsError
 
 import pandas as pd
 import pandasql as ps
+import pyarrow as pa
 
 from typing import List
 from dagster import (
+    LocalFileHandle,
     make_python_type_usable_as_dagster_type,
     op,
     Field,
@@ -43,9 +46,11 @@ from dagster import (
 )
 
 from realestate.common.types import DeltaCoordinate, SqlTableName
+from realestate.common.helper_functions import rename_pandas_dataframe_columns, read_gzipped_json
 
 
 from dagster import Field, String
+from deltalake import DeltaTable
 
 
 
@@ -57,51 +62,47 @@ def _get_s3a_path(bucket, path):
     return "s3a://" + bucket + "/" + path
 
 
-def rename_spark_dataframe_columns(data_frame, fn):
-    return data_frame.toDF(*[fn(c) for c in data_frame.columns])
+@op(
+    required_resource_keys={"pyspark", "s3"},
+    description="""Ingest s3 path with zipped jsons
+and load it into a Spark Dataframe.
+It infers header names but and infer schema.
 
+It also ensures that the column names are valid parquet column names by
+filtering out any of the following characters from column names:
 
-# @op(
-#     required_resource_keys={"pyspark", "s3"},
-#     description="""Ingest s3 path with zipped jsons
-# and load it into a Spark Dataframe.
-# It infers header names but and infer schema.
+Characters (within quotations): "`{chars}`"
 
-# It also ensures that the column names are valid parquet column names by
-# filtering out any of the following characters from column names:
+""".format(
+        chars=PARQUET_SPECIAL_CHARACTERS
+    ),
+)
+def s3_to_df(context, s3_coordinate: S3Coordinate) -> DataFrame:
+    context.log.debug(
+        "AWS_KEY: {access} - Secret: {secret})".format(
+            access=os.environ["MINIO_ROOT_USER"], secret=os.environ["MINIO_ROOT_PASSWORD"]
+        )
+    )
+    # findspark.init(spark_home='/path/to/spark/lib/')
+    s3_path = _get_s3a_path(s3_coordinate["bucket"], s3_coordinate["key"])
 
-# Characters (within quotations): "`{chars}`"
+    context.log.info(
+        "Reading dataframe from s3 path: {path} (Bucket: {bucket} and Key: {key})".format(
+            path=s3_path, bucket=s3_coordinate["bucket"], key=s3_coordinate["key"]
+        )
+    )
 
-# """.format(
-#         chars=PARQUET_SPECIAL_CHARACTERS
-#     ),
-# )
-# def s3_to_df(context, s3_coordinate: S3Coordinate) -> DataFrame:
-#     context.log.debug(
-#         "AWS_KEY: {access} - Secret: {secret})".format(
-#             access=os.environ["MINIO_ROOT_USER"], secret=os.environ["MINIO_ROOT_PASSWORD"]
-#         )
-#     )
-#     # findspark.init(spark_home='/path/to/spark/lib/')
-#     s3_path = _get_s3a_path(s3_coordinate["bucket"], s3_coordinate["key"])
+    # reading from a folder handles zipped and unzipped jsons automatically
+    data_frame = context.resources.pyspark.spark_session.read.json(s3_path)
 
-#     context.log.info(
-#         "Reading dataframe from s3 path: {path} (Bucket: {bucket} and Key: {key})".format(
-#             path=s3_path, bucket=s3_coordinate["bucket"], key=s3_coordinate["key"]
-#         )
-#     )
+    # df.columns #print columns
 
-#     # reading from a folder handles zipped and unzipped jsons automatically
-#     data_frame = context.resources.pyspark.spark_session.read.json(s3_path)
+    context.log.info("Column FactId removed from df")
 
-#     # df.columns #print columns
-
-#     context.log.info("Column FactId removed from df")
-
-#     # parquet compat
-#     return rename_spark_dataframe_columns(
-#         data_frame, lambda x: re.sub(PARQUET_SPECIAL_CHARACTERS, "", x)
-#     )
+    # parquet compat
+    return rename_spark_dataframe_columns(
+        data_frame, lambda x: re.sub(PARQUET_SPECIAL_CHARACTERS, "", x)
+    )
 
 
 # @op(
@@ -121,7 +122,7 @@ def rename_spark_dataframe_columns(data_frame, fn):
 #     return reduce(DataFrame.unionAll, dfs)
 
 @op(
-    description="""This function is to flatten the nested json properties to a table with flat columns""",
+    description="""This function is to flatten the nested json properties to a table with flat columns. Renames columns to avoid parquet special characters.""",
     config_schema={
         "remove_columns": Field(
             [String],
@@ -135,36 +136,34 @@ def rename_spark_dataframe_columns(data_frame, fn):
             description=("unessesary columns to be removed in from the json"),
         ),
     },
+    out=Out(io_manager_key="fs_io_manager"),
 )
-def flatten_json_with_pandas(context, json_data) -> pd.DataFrame:
-    # Initial flattening
+def flatten_json(context, local_file: LocalFileHandle) -> pd.DataFrame:
+
+    # reading from a folder with zipped JSONs 
+    context.log.info(f"Reading from local file: {local_file.path} ...")
+    json_data = read_gzipped_json(local_file.path)
+
+    # Flatten: Normalize the JSON data
     df = pd.json_normalize(json_data)
 
-    # Remove specified columns
+    #TODO: Still need to remove FactId?
+    if 'FactId' in df.columns:
+        df.drop('FactId', axis=1, inplace=True)
+        context.log.info("Column FactId removed from df")
+
+
+    # rename for avoid parquet special characters
+    df = rename_pandas_dataframe_columns(
+        df, lambda x: re.sub(PARQUET_SPECIAL_CHARACTERS, "", x)
+    )
 
     df.drop(columns=context.op_config["remove_columns"], errors='ignore', inplace=True)
-    return df
+    # convert . column names to underlines
+    df.columns = df.columns.str.replace('.', '_', regex=False)
 
-    # handle arrays if needed
-    #  # Check each column to see if it needs flattening or exploding
-    #  for col_name in df.columns:
-    #      # Skip removal columns
-    #      if col_name in remove_columns:
-    #          df = df.drop(columns=[col_name])
-    #          continue
-        
-    #      # Flatten if the column type is dict (similar to StructType)
-    #      if isinstance(df[col_name].iloc[0], dict):
-    #          # Flatten and merge with original DataFrame
-    #          flattened = pd.json_normalize(df[col_name])
-    #          flattened.columns = [f"{col_name}_{subcol}" for subcol in flattened.columns]
-    #          df = df.drop(columns=[col_name]).join(flattened)
-        
-    #      # Explode if the column type is list (similar to ArrayType)
-    #      elif isinstance(df[col_name].iloc[0], list):
-    #          df = df.explode(col_name)
-            
-    #  return df
+    context.log.info(f"faltten df length length: {len(df)} and schema: {df.columns}")
+    return df
 
 
 # @op(
@@ -386,14 +385,38 @@ def flatten_json_with_pandas(context, json_data) -> pd.DataFrame:
 #            },
 #        )
 
-#        yield Output(value=ins["target_delta_table"], output_name="result")
+#        yield Output(value=ins[target_delta_table"], output_name="result")
 
 #    return _sql_solid
 
-# @op
-# def merge_property_delta2(delta: delta_lake_resource, input_data : S3Coordinate):
-#     delta.merge_table(target_dt="target_delta_table", input_dataframe)
+@op(out=Out(io_manager_key="fs_io_manager"))
+def merge_property_delta(context, input_dataframe: DataFrame) -> DeltaCoordinate:
+    
+    target_delta_table = "s3a://real-estate/lake/bronze/property"
+    target_delta_coordinate = { "s3_coordinate_bucket": "real-estate", "s3_coordinate_key": "lake/bronze/property", "table_name": "property", "database": "core"}
 
+    df, dt = reading_delta_table(context, target_delta_table)
+
+    input_table_pa = pa.Table.from_pandas(input_dataframe)
+    context.log.debug(f"Target Delta table schema: {dt.to_pyarrow_dataset().schema}")
+    context.log.debug(f"input_dataframe: {type(input_dataframe)} and lenght {len(input_dataframe)}")
+    context.log.debug(f"input_dataframe schema: {input_table_pa.schema}")
+
+    (
+        dt.merge(
+            source=input_dataframe,
+            # predicate='target.propertyDetails_id = source."propertyDetails_propertyId"',
+            predicate='target.propertyDetails_propertyId = source."propertyDetails_propertyId"',
+            source_alias='source',
+            target_alias='target')
+        .when_matched_update_all()
+        .when_not_matched_insert_all()
+        .execute()
+    )
+    context.log.info("Merged data into Delta table `property` successfully")
+
+    #return delta coordinates for notebooks to read from
+    return target_delta_coordinate
 
 
 # merge_property_delta = sql_solid(
@@ -418,6 +441,7 @@ def flatten_json_with_pandas(context, json_data) -> pd.DataFrame:
 # )
 
 
+
 @op(
     required_resource_keys={"s3"},
     description="""This will check if property is already downloaded. If so, check if price or other
@@ -431,9 +455,9 @@ def get_changed_or_new_properties(context, properties: PropertyDataFrame, proper
     ids: str = ", ".join(ids_tmp)
 
     context.log.info("Fetched propertyDetails_id's: [{}]".format(ids))
-    context.log.debug(f"type: property_table: {type(property_table)} and lenght {len(property_table)}")
+    # context.log.debug(f"type: property_table: {type(property_table)} and lenght {len(property_table)}")
 
-    cols_props = ["propertyDetails_id", "fingerprint"]
+    cols_props = ["propertyDetails_propertyId", "fingerprint"]
     cols_PropertyDataFrame = [
         "id",
         "fingerprint",
@@ -445,38 +469,38 @@ def get_changed_or_new_properties(context, properties: PropertyDataFrame, proper
         "last_normalized_price",
     ]
 
-    query = f"""SELECT propertyDetails_id
-                , CAST(propertyDetails_id AS STRING)
+    query = f"""SELECT propertyDetails_propertyId
+                , CAST(propertyDetails_propertyId AS STRING)
                     || '-'
                     || propertyDetails_normalizedPrice AS fingerprint
             FROM property_table
-            WHERE propertyDetails_id IN ( {ids} )
+            WHERE propertyDetails_propertyId IN ( {ids} )
             """
     result_df = ps.sqldf(query, locals())
-    context.log.debug(f"lenght: result_df: {len(result_df)}")
+    context.log.info(f"Lenght: property_table: {len(result_df)}")
 
     # get a list selected colum: `property_ids` and its fingerprint
-    existing_props = result_df[["propertyDetails_id", "fingerprint"]].values.tolist()
+    existing_props = result_df[["propertyDetails_propertyId", "fingerprint"]].values.tolist()
 
     # Convert dict into pandas dataframe
     pd_existing_props = pd.DataFrame(existing_props, columns=cols_props)
     pd_properties = pd.DataFrame(properties, columns=cols_PropertyDataFrame)
 
     # debugging
-    context.log.debug(f"pd_existing_props: {pd_existing_props}, type: {type(pd_existing_props)}")
-    context.log.debug(f"pd_properties: {pd_properties}")
+    # context.log.debug(f"pd_existing_props: {pd_existing_props}, type: {type(pd_existing_props)}")
+    # context.log.debug(f"pd_properties: {pd_properties}")
 
     # select new or changed once
     df_changed = ps.sqldf(
         """
         SELECT p.id, p.fingerprint, p.is_prefix, p.rentOrBuy, p.city, p.propertyType, p.radius, p.last_normalized_price
         FROM pd_properties p LEFT OUTER JOIN pd_existing_props e
-            ON p.id = e.propertyDetails_id
+            ON p.id = e.propertyDetails_propertyId
             WHERE p.fingerprint != e.fingerprint
                 OR e.fingerprint IS NULL
         """, locals()
     )
-    context.log.debug(f"lenght: df_changed: {len(df_changed)}")
+    context.log.info(f"lenght: df_changed: {len(df_changed)}")
     if df_changed.empty:
         context.log.info("No property of [{}] changed".format(ids))
     else:
@@ -489,36 +513,6 @@ def get_changed_or_new_properties(context, properties: PropertyDataFrame, proper
         context.log.info("changed properties: {}".format(ids_changed))
         yield Output(changed_properties, "properties")
 
-
-@op(required_resource_keys={"boto3", "s3"}, description="""Uploads file to s3 """)
-def upload_to_s3(
-    context, local_file: FileHandle, s3_coordinate: S3Coordinate
-) -> S3Coordinate:
-    # add filename to key
-    return_s3_coordinates: S3Coordinate = {
-        "bucket": s3_coordinate["bucket"],
-        "key": s3_coordinate["key"] + "/" + os.path.basename(local_file.path),
-    }
-
-    s3 = context.resources.boto3.get_client()
-    context.log.info(
-        "s3 upload location: {bucket}/{key}".format(
-            bucket=return_s3_coordinates["bucket"], key=return_s3_coordinates["key"]
-        )
-    )
-
-    try:
-        s3.upload_file(
-            local_file.path,
-            return_s3_coordinates["bucket"],
-            return_s3_coordinates["key"],
-        )
-        context.log.info("Upload Successful")
-        return return_s3_coordinates
-    except FileNotFoundError:
-        context.log.error("The file was not found")
-    except NoCredentialsError:
-        context.log.error("Credentials not available")
 
 
 # @op(
