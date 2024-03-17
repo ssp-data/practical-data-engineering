@@ -52,11 +52,14 @@ Please refer to individual component directories for detailed setup and usage in
 - Basic understanding of Python and SQL for effective navigation and customization of the project
 
 ### Quick Start:
+
+> ⚠️ **Disclaimer: For Educational Use Only**  
+> This project is designed for educational purposes, demonstrating web scraping and data engineering practices. Ensure you do not violate any website's copyright or terms of service, and approach scraping responsibly and respectfully.
+
 1. Clone this repository.
 2. Install dependencies
 3. Install and start MinIO
 4. Explore the data with the provided Jupyter Notebooks and Superset dashboards.
-
 ```sh
 #change to the pipeline directory
 cd src/pipelines/real-estate
@@ -70,7 +73,6 @@ minio server /tmp/minio/
 # startup dagster
 dagster dev
 ```
-
 
 ## 📈 Visualizing the Pipeline
 
