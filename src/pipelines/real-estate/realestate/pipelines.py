@@ -4,24 +4,15 @@ from dagster import (
     file_relative_path,
     config_from_files,
     graph,
-    In,
     Out,
     GraphOut,
     List,
     DynamicOut,
     DynamicOutput,
-    AssetOut,
-    fs_io_manager,
-    asset,
-    SourceAsset,
-    TableSchema,
 )
 from typing import List
 
-import os
 import pandas as pd
-
-from dagster._utils import dagster_type
 
 from realestate.common import resource_def
 from realestate.common.helper_functions import reading_delta_table
@@ -32,29 +23,20 @@ from realestate.common.solids_scraping import (
     cache_properies_from_rest_api,
 )
 
-# from realestate.common.resources import boto3_connection, druid_db_info_resource
 from realestate.common.resources import boto3_connection, druid_db_info_resource
 
 # from dagster_aws.s3.solids import S3Coordinate
 from realestate.common.types import DeltaCoordinate
 from realestate.common.types_realestate import PropertyDataFrame, SearchCoordinate
 
-# from realestate.common.solids_filehandle import json_to_gzip
 from realestate.common.solids_spark_delta import (
-    # upload_to_s3,
     get_changed_or_new_properties,
     merge_property_delta,
     flatten_json,
-    s3_to_df,
 )
 
 from realestate.common.solids_jupyter import data_exploration
 from itertools import chain
-
-
-# from dagster.core.storage.file_cache import fs_file_cache
-# from dagster.core.storage.temp_file_manager import tempfile_resource
-
 
 @op(
     description="Reads the Delta Table from S3", out=Out(io_manager_key="fs_io_manager")

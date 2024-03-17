@@ -3,16 +3,12 @@
 from typing import Any, Generator
 import requests
 import re
-import os
 import datetime
 from bs4 import BeautifulSoup
 from datetime import datetime
-import json
 
 from contextlib import closing
 import io
-import gzip
-import shutil
 
 # from io import BytesIO
 
@@ -24,10 +20,7 @@ from dagster import (
     op,
     Field,
     String,
-    FileHandle,
     LocalFileHandle,
-    ExpectationResult,
-    MetadataValue,
     Out,
     Output,
 )
