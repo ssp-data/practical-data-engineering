@@ -1,0 +1,4 @@
+strawberry-graphql[debug-server]
+dagster==0.13.4
+great_expectations
+dbt

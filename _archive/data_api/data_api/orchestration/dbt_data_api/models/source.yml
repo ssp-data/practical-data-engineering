@@ -1,0 +1,15 @@
+version: 2
+sources:
+  - name: first_dataset
+    tables:
+      - name: my_first_dbt_model
+        meta:
+          metriql:
+            total_rows:
+              aggregation: count
+        columns:
+          - name: id
+            meta:
+              metriql.dimension:
+                name: id
+                type: int

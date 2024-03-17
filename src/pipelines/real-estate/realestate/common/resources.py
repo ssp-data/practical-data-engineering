@@ -1,5 +1,6 @@
 from dagster import resource, Field
-import boto3
+
+from boto3 import session
 
 
 class Boto3Connector(object):
@@ -10,14 +11,14 @@ class Boto3Connector(object):
 
     # def get_session(self):
 
-    #     session = boto3.session.Session()
+    #     session = session.Session()
     #     return session
 
     def get_client(self):
-        session = boto3.session.Session()
+        session = session.Session()
 
         s3_client = session.client(
-            service_name='s3',
+            service_name="s3",
             aws_access_key_id=self.aws_access_key_id,
             aws_secret_access_key=self.aws_secret_access_key,
             endpoint_url=self.endpoint_url,
@@ -27,16 +28,16 @@ class Boto3Connector(object):
 
 @resource(
     config_schema={
-        'aws_access_key_id': Field(str),
-        'aws_secret_access_key': Field(str),
-        'endpoint_url': Field(str),
+        "aws_access_key_id": Field(str),
+        "aws_secret_access_key": Field(str),
+        "endpoint_url": Field(str),
     }
 )
 def boto3_connection(context):
     return Boto3Connector(
-        context.resource_config['aws_access_key_id'],
-        context.resource_config['aws_secret_access_key'],
-        context.resource_config['endpoint_url'],
+        context.resource_config["aws_access_key_id"],
+        context.resource_config["aws_secret_access_key"],
+        context.resource_config["endpoint_url"],
     )
 
 
@@ -62,14 +63,14 @@ class DruidConnector(object):
 
 @resource(
     config_schema={
-        'druid_router': Field(str),
+        "druid_router": Field(str),
         # 'druid_auth_user': Field(str),
         # 'druid_auth_password': Field(str),
     }
 )
 def druid_db_info_resource(context):
     return DruidConnector(
-        context.resource_config['druid_router'],
+        context.resource_config["druid_router"],
         # context.resource_config['druid_auth_user'],
         # context.resource_config['druid_auth_password'],
     )
