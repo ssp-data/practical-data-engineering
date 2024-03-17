@@ -73,7 +73,6 @@ minio server /tmp/minio/
 # create the bucket `real-estate` MinIO on 127.0.0.1:9000
 # Create access key/passwords, defaults are MINIO_ROOT_USER/MINIO_ROOT_PASSWORD with default values that should work without any further configuration.
 
-
 # startup dagster
 dagster dev
 ```
