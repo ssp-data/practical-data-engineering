@@ -5,8 +5,8 @@ import pandas as pd
 import os
 import json
 
-MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minio")
-MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "miniostorage")
+MINIO_ACCESS_KEY = os.getenv("MINIO_ROOT_USER", "minio")
+MINIO_SECRET_KEY = os.getenv("MINIO_ROOT_PASSWORD", "miniostorage")
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://127.0.0.1:9000")
 
 storage_options = {

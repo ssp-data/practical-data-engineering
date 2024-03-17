@@ -15,8 +15,8 @@ from dagster_deltalake_pandas import (
 )
 from dagster_deltalake import S3Config
 
-MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minio")
-MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "miniostorage")
+MINIO_ACCESS_KEY = os.getenv("MINIO_ROOT_USER", "minio")
+MINIO_SECRET_KEY = os.getenv("MINIO_ROOT_PASSWORD", "miniostorage")
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://127.0.0.1:9000")
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")  # TODO: needed? correct?
 
