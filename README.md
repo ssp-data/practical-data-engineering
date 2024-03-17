@@ -48,7 +48,7 @@ Please refer to individual component directories for detailed setup and usage in
 ### Prerequisites:
 - Python and pip for installing dependencies
 - MinIO running for cloud-agnostic S3 storage
-- Docker Desktop & Kubernetes for running Jupyter Notebooks
+- Docker Desktop & Kubernetes for running Jupyter Notebooks (optional, if you want ML capabilities)
 - Basic understanding of Python and SQL for effective navigation and customization of the project
 
 ### Quick Start:
