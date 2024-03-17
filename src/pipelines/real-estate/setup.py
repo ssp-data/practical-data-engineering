@@ -7,6 +7,7 @@ setup(
         "dagster==1.6.8",
         "dagster-pandas",
         "dagstermill",
+        "notebook",
         "dagster-aws",
         "dagster-postgres",
         "dagster-webserver",

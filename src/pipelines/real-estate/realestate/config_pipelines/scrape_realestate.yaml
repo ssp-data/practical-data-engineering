@@ -30,9 +30,9 @@ ops:
   #           s3_coordinate_bucket: real-estate
   #           s3_coordinate_key: lake/bronze/property
   #           table_name: property
-  # data_exploration:
-  #   inputs:
-  #     # delta_path: s3a://real-estate/lake/bronze/property
-  #     key: minio
-  #     secret: miniostorage
-  #     endpoint: http://192.168.46.93:9000
+  data_exploration:
+    inputs:
+      # delta_path: s3a://real-estate/lake/bronze/property
+      key: minio
+      secret: miniostorage
+      endpoint: http://192.168.46.93:9000

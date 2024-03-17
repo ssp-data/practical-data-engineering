@@ -48,7 +48,7 @@ from realestate.common.solids_spark_delta import (
     s3_to_df,
 )
 
-# from realestate.common.solids_jupyter import data_exploration
+from realestate.common.solids_jupyter import data_exploration
 from itertools import chain
 
 
@@ -153,12 +153,8 @@ def collect_search_criterias(context, search_criterias: List[SearchCoordinate]):
 def scrape_realestate():
     search_criterias = collect_search_criterias().map(list_changed_properties)
 
-    merge_staging_to_delta_table_composite.alias("merge_staging_to_delta_table")(
-        collect_properties(search_criterias.collect())
+    data_exploration(
+        merge_staging_to_delta_table_composite.alias("merge_staging_to_delta_table")(
+            collect_properties(search_criterias.collect())
+        )
     )
-
-    # data_exploration(
-    #     merge_staging_to_delta_table_composite.alias("merge_staging_to_delta_table")(
-    #         collect_properties(search_criterias.collect())
-    #     )
-    # )

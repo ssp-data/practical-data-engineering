@@ -1,49 +1,44 @@
-from dagster import InputDefinition, Field, OutputDefinition, FileHandle, ModeDefinition
-import dagstermill as dm
-from dagster.utils import script_relative_path
+from dagster import Out, FileHandle, In, file_relative_path
 import os
+
+import dagstermill as dm
+from realestate.common.types import DeltaCoordinate
 
 
 def _notebook_path(name):
     return os.path.join(
-        os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'notebooks')), name
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "notebooks")),
+        name,
     )
     # os.path.join(os.path.dirname(os.path.abspath(__file__)), "notebooks", name)
 
 
-def notebook_solid(name, notebook_path, input_defs, output_defs, required_resource_keys=None):
-    return dm.define_dagstermill_solid(
-        name,
-        _notebook_path(notebook_path),
-        input_defs,
-        output_defs,
-        required_resource_keys=required_resource_keys,
-    )
-
-
 # TODO: add spark as resource and use configs inside notebook.
 # TODO: plot pdfs -> copy airline demo notebook
-data_exploration = notebook_solid(
-    "data_exploration",
-    "comprehensive-real-estate-data-exploration.ipynb",
-    input_defs=[
-        InputDefinition("delta_path", str, description="s3 path to the property-delta-table"),
-        InputDefinition("key", str, description="s3 key"),
-        InputDefinition("secret", str, description="s3 secret"),
-        InputDefinition("endpoint", str, description="s3 endpoint"),
+data_exploration = dm.factory.define_dagstermill_op(
+    name="data_exploration",
+    notebook_path=_notebook_path("comprehensive-real-estate-data-exploration.ipynb"),
+    ins={
+        "delta_path": In(
+            dagster_type=DeltaCoordinate, description="s3 path to the property-delta-table"
+        ),
+        "key": In(dagster_type=str, description="s3 key"),
+        "secret": In(dagster_type=str, description="s3 secret"),
+        "endpoint": In(dagster_type=str, description="s3 endpoint"),
         # InputDefinition("pyspark", ModeDefinition, description="pyspark resource"),
-    ],
-    output_defs=[
-        OutputDefinition(
-            dagster_type=FileHandle,
-            # name='plots_pdf_path',
-            description="The saved PDF plots.",
+    },
+    outs={
+        "plots_pdf_path": Out(
+            dagster_type=FileHandle, description="The saved PDF plots."
         )
-    ],
-    required_resource_keys={"pyspark"},
+    },
+    io_manager_key="fs_io_manager",
+    # required_resource_keys={"pyspark"},
 )
 
-# data_exploration = dm.define_dagstermill_solid(
+
+# from dagster.utils import script_relative_path
+# data_exploration = dm.factory.define_dagstermill_op(
 #     "data_exploration",
 #     script_relative_path("../notebooks/comprehensive-real-estate-data-exploration.ipynb"),
 #     input_defs=[
