@@ -85,9 +85,10 @@ dagster dev
 - [YouTube Video](https://youtu.be/FfDOsgg2EEQ): Watch the video tutorial on building this project.
 - [Building a Data Engineering Project in 20 Minutes](https://www.ssp.sh/blog/data-engineering-project-in-twenty-minutes/): Access the full blog post detailing the project's development, challenges, and solutions.
 - [DevOps Repositories](https://github.com/sspaeti-com/data-engineering-devops): Explore the setup for Druid, MinIO and other components.
-- [Business Intelligence Meets Data Engineering with Emerging Technologies](https://www.ssp.sh/blog/business-intelligence-meets-data-engineering/): An earlier post that dives into some of the technologies used in this project.
-- [Data Engineering Vault](https://vault.ssp.sh/): A collection of resources, tutorials, and guides for data engineering projects.
 - [Open-Source Data Engineering Projects](https://www.ssp.sh/brain/open-source-data-engineering-projects/): A curated list of open-source data engineering projects to explore.
+- [Data Engineering Vault](https://vault.ssp.sh/): A collection of resources, tutorials, and guides for data engineering projects.
+- [Data Engineering Design Patterns](https://www.dedp.online): My book about the evolution of data engineering and its design patterns.
+
 
 ## 📣 Feedback
 Your feedback is invaluable to improve this project. If you've built your project based on this repository or have suggestions, please let me know through creating an Issues or a Pull Request directly.
