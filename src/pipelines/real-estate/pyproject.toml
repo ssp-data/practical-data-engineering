@@ -1,7 +1,26 @@
-
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "realestate-pipeline"
+version = "0.1.0"
+dependencies = [
+  "dagster",
+  "dagster-deltalake",
+  "dagster-deltalake-pandas",
+  "deltalake==0.17.0",
+  "beautifulsoup4",
+  "pandas",
+  "requests"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "black",
+  "ruff"
+]
 
 [tool.dagster]
 module_name = "realestate"
