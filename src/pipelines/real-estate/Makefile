@@ -1,10 +1,10 @@
 .DEFAULT_GOAL := up
 
-up: 
-	dagster dev
+up:
+	uv run dagster dev
 
 install:
-	pip install -e ".[dev]"
+	uv sync --all-extras
 
 minio:
 	minio server ~/Documents/minio/

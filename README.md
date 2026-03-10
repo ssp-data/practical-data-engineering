@@ -46,7 +46,7 @@ Next, I might add Rill Developer to the mix to have some fun analyzing the data 
 Please refer to individual component directories for detailed setup and usage instructions. The project is designed to run both locally and on cloud environments, offering flexibility in deployment and testing.
 
 ### Prerequisites:
-- Python and pip for installing dependencies
+- Python and [uv](https://docs.astral.sh/uv/) for installing dependencies
 - MinIO running for cloud-agnostic S3 storage
 - Docker Desktop & Kubernetes for running Jupyter Notebooks
 - Basic understanding of Python and SQL for effective navigation and customization of the project
@@ -62,13 +62,13 @@ Please refer to individual component directories for detailed setup and usage in
 cd src/pipelines/real-estate
 
 # installation
-pip install -e ".[dev]"
+uv sync --all-extras
 
 # run minio
 minio server /tmp/minio/
 
 # startup dagster
-dagster dev
+uv run dagster dev
 ```
 
 
