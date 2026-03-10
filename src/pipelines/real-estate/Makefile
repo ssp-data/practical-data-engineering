@@ -1,6 +1,6 @@
-.DEFAULT_GOAL := up
+.DEFAULT_GOAL := run
 
-up: ## Start dagster dev server
+run: ## Start dagster dev server
 	uv run dagster dev
 
 install: ## Install all dependencies

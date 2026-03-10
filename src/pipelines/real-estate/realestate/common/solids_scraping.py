@@ -16,6 +16,31 @@ import dagster as dg
 
 from .types_realestate import PropertyDataFrame, SearchCoordinate, JsonType
 
+# NOTE: This scraper is for EDUCATIONAL PURPOSE ONLY — use at your own risk.
+# immoscout24.ch uses bot protection (DataDome) that blocks automated HTTP requests.
+# Plain `requests` may get a 403 challenge page instead of real results.
+# If you get 0 properties, your requests are likely being blocked.
+_session = requests.Session()
+_session.headers.update({
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+})
+
+
+def _is_cloudflare_blocked(soup: BeautifulSoup) -> bool:
+    """Detect if the response is a Cloudflare/DataDome challenge page."""
+    title = soup.find("title")
+    if title and "captcha" in title.get_text().lower():
+        return True
+    if soup.find("script", src=re.compile(r"captcha-delivery\.com")):
+        return True
+    # Cloudflare challenge pages have very little content
+    if soup.find("p", id="cmsg"):
+        return True
+    return False
+
+
 def _extract_listings_from_json_ld(soup: BeautifulSoup, rent_or_buy: str) -> list[dict]:
     """Extract property IDs and prices from JSON-LD structured data in the page.
     Returns list of dicts with 'id' and 'price' keys."""
@@ -87,8 +112,18 @@ def list_props_immo24(context, searchCriteria: SearchCoordinate) -> PropertyData
     )
     context.log.info(f"Search url: {url}")
 
-    response = requests.get(url)
+    response = _session.get(url)
+    context.log.info(f"Response status: {response.status_code}, content length: {len(response.text)}")
     soup = BeautifulSoup(response.text, "html.parser")
+
+    if _is_cloudflare_blocked(soup):
+        title = soup.find("title")
+        context.log.warning(
+            f"Cloudflare/bot protection detected! Page title: '{title.get_text() if title else 'N/A'}'. "
+            f"immoscout24.ch blocks automated requests. Try running from a network without bot protection, "
+            f"or check if your IP is being rate-limited."
+        )
+        return []
 
     # Extract property IDs from links
     ids = _extract_property_ids_from_links(soup, rent_or_buy)
@@ -133,7 +168,7 @@ def list_props_immo24(context, searchCriteria: SearchCoordinate) -> PropertyData
     for page in range(2, last_page + 1):
         page_url = url + f"&pn={page}"
         context.log.debug(f"Fetching page {page}: {page_url}")
-        page_response = requests.get(page_url)
+        page_response = _session.get(page_url)
         page_soup = BeautifulSoup(page_response.text, "html.parser")
 
         page_ids = _extract_property_ids_from_links(page_soup, rent_or_buy)
