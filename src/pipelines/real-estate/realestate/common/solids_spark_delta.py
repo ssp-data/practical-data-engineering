@@ -1,56 +1,20 @@
-# gernal op pyspark execution
+# general op pyspark execution
 
-# from dagster_aws.s3.ops import S3Coordinate
-from .types import S3Coordinate
-
-# new types?
-# from dagster_aws.s3 import S3Resource, S3FileHandle
-
-# from pyspark.sql.types import StructType, ArrayType
-# from pyspark.sql.functions import col, explode_outer
-
-from functools import reduce
-
-from functools import reduce
-from pandasql import sqldf
 from pandas import DataFrame
-
 
 from realestate.common.types_realestate import PropertyDataFrame
 from realestate.common.helper_functions import reading_delta_table
-from jinja2 import Template
 
 import re
-import os
-from botocore.exceptions import NoCredentialsError
 
 import pandas as pd
 import pandasql as ps
 import pyarrow as pa
 
-from typing import List
-from dagster import (
-    LocalFileHandle,
-    make_python_type_usable_as_dagster_type,
-    op,
-    Field,
-    String,
-    Bool,
-    Output,
-    In,
-    Out,
-    check,
-    FileHandle,
-    AssetMaterialization,
-    MetadataValue,
-)
+import dagster as dg
 
-from realestate.common.types import DeltaCoordinate, SqlTableName
+from realestate.common.types import DeltaCoordinate
 from realestate.common.helper_functions import rename_pandas_dataframe_columns, read_gzipped_json
-
-
-from dagster import Field, String
-from deltalake import DeltaTable
 
 
 
@@ -58,74 +22,54 @@ PARQUET_SPECIAL_CHARACTERS = r"[ ,;{}()\n\t=]"
 
 
 def _get_s3a_path(bucket, path):
-    # TODO: remove unnessesary slashs if there
     return "s3a://" + bucket + "/" + path
 
 
-@op(
-    required_resource_keys={"pyspark", "s3"},
-    description="""Ingest s3 path with zipped jsons
-and load it into a Spark Dataframe.
-It infers header names but and infer schema.
-
-It also ensures that the column names are valid parquet column names by
-filtering out any of the following characters from column names:
-
-Characters (within quotations): "`{chars}`"
-
-""".format(
-        chars=PARQUET_SPECIAL_CHARACTERS
-    ),
-)
-def s3_to_df(context, s3_coordinate: S3Coordinate) -> DataFrame:
-    context.log.debug(
-        "AWS_KEY: {access} - Secret: {secret})".format(
-            access=os.environ["MINIO_ROOT_USER"], secret=os.environ["MINIO_ROOT_PASSWORD"]
-        )
-    )
-    # findspark.init(spark_home='/path/to/spark/lib/')
-    s3_path = _get_s3a_path(s3_coordinate["bucket"], s3_coordinate["key"])
-
-    context.log.info(
-        "Reading dataframe from s3 path: {path} (Bucket: {bucket} and Key: {key})".format(
-            path=s3_path, bucket=s3_coordinate["bucket"], key=s3_coordinate["key"]
-        )
-    )
-
-    # reading from a folder handles zipped and unzipped jsons automatically
-    data_frame = context.resources.pyspark.spark_session.read.json(s3_path)
-
-    # df.columns #print columns
-
-    context.log.info("Column FactId removed from df")
-
-    # parquet compat
-    return rename_spark_dataframe_columns(
-        data_frame, lambda x: re.sub(PARQUET_SPECIAL_CHARACTERS, "", x)
-    )
-
-
-# @op(
-#     # ins=[In("prop_s3_coordinates", List[S3Coordinate])],
-#     # out=Out(List[S3Coordinate]),
+# @dg.op(
 #     required_resource_keys={"pyspark", "s3"},
-#     description="combine multiple s3 coordinates to one dataframe",
+#     description="""Ingest s3 path with zipped jsons
+# and load it into a Spark Dataframe.
+# It infers header names but and infer schema.
+#
+# It also ensures that the column names are valid parquet column names by
+# filtering out any of the following characters from column names:
+#
+# Characters (within quotations): "`{chars}`"
+#
+# """.format(
+#         chars=PARQUET_SPECIAL_CHARACTERS
+#     ),
 # )
-# # def combine_list_of_dfs(context, prop_s3_coordinates: List[S3Coordinate]):
-# def combine_list_of_dfs(context, prop_s3_coordinates):
-#     dfs = []
-#     for p in prop_s3_coordinates:
-#         dfs.append(
-#             s3_to_df(_get_s3a_path(p["s3_coordinate_bucket"], p["s3_coordinate_key"]))
+# def s3_to_df(context, s3_coordinate: S3Coordinate) -> DataFrame:
+#     context.log.debug(
+#         "AWS_KEY: {access} - Secret: {secret})".format(
+#             access=os.environ["MINIO_ROOT_USER"], secret=os.environ["MINIO_ROOT_PASSWORD"]
 #         )
+#     )
+#     s3_path = _get_s3a_path(s3_coordinate["bucket"], s3_coordinate["key"])
+#
+#     context.log.info(
+#         "Reading dataframe from s3 path: {path} (Bucket: {bucket} and Key: {key})".format(
+#             path=s3_path, bucket=s3_coordinate["bucket"], key=s3_coordinate["key"]
+#         )
+#     )
+#
+#     # reading from a folder handles zipped and unzipped jsons automatically
+#     data_frame = context.resources.pyspark.spark_session.read.json(s3_path)
+#
+#     context.log.info("Column FactId removed from df")
+#
+#     # parquet compat
+#     return rename_spark_dataframe_columns(
+#         data_frame, lambda x: re.sub(PARQUET_SPECIAL_CHARACTERS, "", x)
+#     )
 
-#     return reduce(DataFrame.unionAll, dfs)
 
-@op(
+@dg.op(
     description="""This function is to flatten the nested json properties to a table with flat columns. Renames columns to avoid parquet special characters.""",
     config_schema={
-        "remove_columns": Field(
-            [String],
+        "remove_columns": dg.Field(
+            [str],
             default_value=[
                 "propertyDetails_images",
                 "propertyDetails_pdfs",
@@ -136,18 +80,17 @@ def s3_to_df(context, s3_coordinate: S3Coordinate) -> DataFrame:
             description=("unessesary columns to be removed in from the json"),
         ),
     },
-    out=Out(io_manager_key="fs_io_manager"),
+    out=dg.Out(io_manager_key="fs_io_manager"),
 )
-def flatten_json(context, local_file: LocalFileHandle) -> pd.DataFrame:
+def flatten_json(context, local_file: dg.LocalFileHandle) -> pd.DataFrame:
 
-    # reading from a folder with zipped JSONs 
+    # reading from a folder with zipped JSONs
     context.log.info(f"Reading from local file: {local_file.path} ...")
     json_data = read_gzipped_json(local_file.path)
 
     # Flatten: Normalize the JSON data
     df = pd.json_normalize(json_data)
 
-    #TODO: Still need to remove FactId?
     if 'FactId' in df.columns:
         df.drop('FactId', axis=1, inplace=True)
         context.log.info("Column FactId removed from df")
@@ -166,11 +109,11 @@ def flatten_json(context, local_file: LocalFileHandle) -> pd.DataFrame:
     return df
 
 
-# @op(
+# @dg.op(
 #     description="""This function is to flatten the nested json properties to a table with flat columns""",
 #     config_schema={
-#         "remove_columns": Field(
-#             [String],
+#         "remove_columns": dg.Field(
+#             [str],
 #             default_value=[
 #                 "propertyDetails_images",
 #                 "propertyDetails_pdfs",
@@ -184,7 +127,7 @@ def flatten_json(context, local_file: LocalFileHandle) -> pd.DataFrame:
 # )
 # def flatten_json(context, df: DataFrame) -> DataFrame:
 #     "Flatten array of structs and structs"
-
+#
 #     #    from pyspark.sql.types import *
 #     #    from pyspark.sql.functions import *
 #     # compute Complex Fields (Lists and Structs) in Schema
@@ -196,14 +139,14 @@ def flatten_json(context, local_file: LocalFileHandle) -> pd.DataFrame:
 #             and field.name.startswith("propertyDetails")
 #         ]
 #     )
-
+#
 #     # print(complex_fields)
 #     while len(complex_fields) != 0:
 #         col_name = list(complex_fields.keys())[0]
 #         context.log.debug(
 #             "Processing :" + col_name + " Type : " + str(type(complex_fields[col_name]))
 #         )
-
+#
 #         if col_name in context.op_config["remove_columns"]:
 #             # remove and skip next part
 #             df = df.drop(col_name)
@@ -216,12 +159,12 @@ def flatten_json(context, local_file: LocalFileHandle) -> pd.DataFrame:
 #                     for k in [n.name for n in complex_fields[col_name]]
 #                 ]
 #                 df = df.select("*", *expanded).drop(col_name)
-
+#
 #             # if ArrayType then add the Array Elements as Rows using the explode function
 #             # i.e. explode Arrays
 #             elif type(complex_fields[col_name]) == ArrayType:
 #                 df = df.withColumn(col_name, explode_outer(col_name))
-
+#
 #         # recompute remaining Complex Fields in Schema
 #         complex_fields = dict(
 #             [
@@ -235,163 +178,110 @@ def flatten_json(context, local_file: LocalFileHandle) -> pd.DataFrame:
 #             "count of rows, in case of no errors, count should stay the same. Count: "
 #             + str(df.count())
 #         )
-
+#
 #     return df
 
 
-#def sql_solid(
-#    name,
-#    sql_statement,
-#    materialization_strategy,
-#    # target_delta_table: DeltaCoordinate,
-#    # src_df: DataFrame,
-#    table_name=None,
-#    ins=None,
-#    # input_defs=[
-#    #     InputDefinition("target_delta_table", DeltaCoordinate),
-#    # ],
-#):
-#    """Return a new solid that executes and materializes a SQL select statement.
+# def sql_solid(
+#     name,
+#     sql_statement,
+#     materialization_strategy,
+#     table_name=None,
+#     ins=None,
+# ):
+#     """Return a new solid that executes and materializes a SQL select statement."""
+#     materialization_strategy_output_types = {
+#         "table": SqlTableName,
+#         "delta_table": DeltaCoordinate,
+#     }
+#
+#     if materialization_strategy not in materialization_strategy_output_types:
+#         raise Exception(
+#             "Invalid materialization strategy {materialization_strategy}, must "
+#             "be one of {materialization_strategies}".format(
+#                 materialization_strategy=materialization_strategy,
+#                 materialization_strategies=str(
+#                     list(materialization_strategy_output_types.keys())
+#                 ),
+#             )
+#         )
+#
+#     output_description = (
+#         "The string name of the new table created by the solid"
+#         if materialization_strategy == "table"
+#         or materialization_strategy == "delta_table"
+#         else "The materialized SQL statement."
+#     )
+#
+#     description = """This solid executes the following SQL statement:
+#     {sql_statement}""".format(
+#         sql_statement=sql_statement
+#     )
+#
+#     sql_statement = ("{sql_statement};").format(sql_statement=sql_statement)
+#
+#     @dg.op(
+#         name=name,
+#         ins=ins,
+#         out=dg.Out(
+#                 materialization_strategy_output_types[materialization_strategy],
+#                 description=output_description,
+#             ),
+#         description=description,
+#         required_resource_keys={"pyspark"},
+#         tags={
+#             "kind": "sql",
+#             "sql": sql_statement,
+#         },
+#     )
+#     def _sql_solid(context, **ins):
+#         if ins["target_delta_table"] is None:
+#             raise Exception("Input `target_delta_table` not provided.")
+#         if ins["input_dataframe"] is None:
+#             raise Exception("Input `input_dataframe` not provided.")
+#
+#         target_delta_path = _get_s3a_path(
+#             ins["target_delta_table"]["s3_coordinate_bucket"],
+#             ins["target_delta_table"]["s3_coordinate_key"],
+#         )
+#         context.log.info("Target Delta table path: {}".format(target_delta_path))
+#
+#         insert_columns = "\n, ".join(ins["input_dataframe"].columns)
+#         update_columns = "\n, ".join(
+#             ["trg." + c + " = src." + c for c in ins["input_dataframe"].columns]
+#         )
+#
+#         sql_statement_template = Template(sql_statement)
+#         repl_sql_statement = sql_statement_template.render(
+#             target_delta_table="delta.`" + target_delta_path + "`",
+#             update_columns=update_columns,
+#             insert_columns=insert_columns,
+#         )
+#
+#         context.log.info(
+#             "Executing sql statement:\n{sql_statement}".format(
+#                 sql_statement=repl_sql_statement
+#             )
+#         )
+#
+#         ins["input_dataframe"].createOrReplaceTempView("input_dataframe")
+#
+#         context.resources.pyspark.spark_session.sql(repl_sql_statement)
+#         yield dg.AssetMaterialization(
+#             asset_key=ins["target_delta_table"]["table_name"],
+#             description="Target Delta table",
+#             metadata={
+#                 "delta_table_path": dg.MetadataValue.path(target_delta_path),
+#             },
+#         )
+#
+#         yield dg.Output(value=ins["target_delta_table"], output_name="result")
+#
+#     return _sql_solid
 
-#    Args:
-#        name (str): The name of the new solid.
-#        sql_statement (str): The sql statement to execute which can be MERGE, INSERT, UPDATE.
-#        materialization_strategy (str): Must be 'delta_table' for now.
-#    Kwargs:
-#        input_defs (list[InputDefinition]): 'target_delta_table' (DeltaCoordinate) must be provided, which is
-#            the table where the sql_statement is running against.
-#            'input_dataframe' (DataFrame) must be provided for providing input data for the sql_statement
-
-#    Returns:
-#        function:
-#            The new SQL solid.
-#    """
-#    # ins = . opt_list_param(ins, "ins", In)
-
-#    materialization_strategy_output_types = {  # pylint:disable=C0103
-#        "table": SqlTableName,
-#        "delta_table": DeltaCoordinate,
-#        # 'view': String,
-#        # 'query': SqlAlchemyQueryType,
-#        # 'subquery': SqlAlchemySubqueryType,
-#        # 'result_proxy': SqlAlchemyResultProxyType,
-#        # could also materialize as a Pandas table, as a Spark table, as an intermediate file, etc.
-#    }
-
-#    if materialization_strategy not in materialization_strategy_output_types:
-#        raise Exception(
-#            "Invalid materialization strategy {materialization_strategy}, must "
-#            "be one of {materialization_strategies}".format(
-#                materialization_strategy=materialization_strategy,
-#                materialization_strategies=str(
-#                    list(materialization_strategy_output_types.keys())
-#                ),
-#            )
-#        )
-
-#    output_description = (
-#        "The string name of the new table created by the solid"
-#        if materialization_strategy == "table"
-#        or materialization_strategy == "delta_table"
-#        else "The materialized SQL statement. If the materialization_strategy is "
-#        "'table', this is the string name of the new table created by the solid."
-#    )
-
-#    # sql_statement.replace(
-#    #     "delta.``", "delta.{target_delta_path}".format(target_delta_path=target_delta_path)
-#    # )
-
-#    description = """This solid executes the following SQL statement:
-#    {sql_statement}""".format(
-#        sql_statement=sql_statement
-#    )
-
-#    sql_statement = ("{sql_statement};").format(sql_statement=sql_statement)
-
-#    @op(
-#        name=name,
-#        ins=ins,
-#        out=Out(
-#                materialization_strategy_output_types[materialization_strategy],
-#                description=output_description,
-#            ),
-#        description=description,
-#        required_resource_keys={"pyspark"},
-#        # tags={"kind": "sql", "sql": sql_statement},
-#        tags={
-#            "kind": "sql",
-#            "sql": sql_statement,
-#        },
-#    )
-#    def _sql_solid(context, **ins):  # pylint: disable=unused-argument
-#        """Inner function defining the new solid.
-
-#        Args:
-#            context (SolidExecutionContext): Must expose a `spark` resource with an `spark_session` method
-#                wich can execute SQL against Delta Lake Tables.
-
-#        Returns:
-#            DeltaCoordinate:
-#                The Delta Table Coordinates where the SQL statements were running against.
-#        """
-#        if ins["target_delta_table"] is None:
-#            raise Exception("Input `target_delta_table` not provided.")
-#        if ins["input_dataframe"] is None:
-#            raise Exception("Input `input_dataframe` not provided.")
-#        ##
-#        ## Handling delta-table
-#        ##
-#        target_delta_path = _get_s3a_path(
-#            ins["target_delta_table"]["s3_coordinate_bucket"],
-#            ins["target_delta_table"]["s3_coordinate_key"],
-#        )
-#        context.log.info("Target Delta table path: {}".format(target_delta_path))
-
-#        # prepare colums for merge statement
-#        insert_columns = "\n, ".join(ins["input_dataframe"].columns)
-#        update_columns = "\n, ".join(
-#            ["trg." + c + " = src." + c for c in ins["input_dataframe"].columns]
-#        )
-
-#        # Set Delta-table path and columns
-#        sql_statement_template = Template(sql_statement)
-#        repl_sql_statement = sql_statement_template.render(
-#            target_delta_table="delta.`" + target_delta_path + "`",
-#            update_columns=update_columns,
-#            insert_columns=insert_columns,
-#        )
-
-#        context.log.info(
-#            "Executing sql statement:\n{sql_statement}".format(
-#                sql_statement=repl_sql_statement
-#            )
-#        )
-
-#        ##
-#        ## Handling spark dataframe
-#        ##
-
-#        # register input df for spark to be available in spark.sql
-#        ins["input_dataframe"].createOrReplaceTempView("input_dataframe")
-
-#        context.resources.pyspark.spark_session.sql(
-#            repl_sql_statement
-#        )  # text() function removed here (this would validate string as valid SQL, but with Delta-Merge does not work)
-#        yield AssetMaterialization(
-#            asset_key=ins["target_delta_table"]["table_name"],
-#            description="Target Delta table",
-#            metadata={
-#                "delta_table_path": MetadataValue.path(target_delta_path),
-#            },
-#        )
-
-#        yield Output(value=ins[target_delta_table"], output_name="result")
-
-#    return _sql_solid
-
-@op(out=Out(io_manager_key="fs_io_manager"))
+@dg.op(out=dg.Out(io_manager_key="fs_io_manager"))
 def merge_property_delta(context, input_dataframe: DataFrame) -> DeltaCoordinate:
-    
+
     target_delta_table = "s3a://real-estate/lake/bronze/property"
     target_delta_coordinate = { "s3_coordinate_bucket": "real-estate", "s3_coordinate_key": "lake/bronze/property", "table_name": "property", "database": "core"}
 
@@ -405,7 +295,6 @@ def merge_property_delta(context, input_dataframe: DataFrame) -> DeltaCoordinate
     (
         dt.merge(
             source=input_dataframe,
-            # predicate='target.propertyDetails_id = source."propertyDetails_propertyId"',
             predicate='target.propertyDetails_propertyId = source."propertyDetails_propertyId"',
             source_alias='source',
             target_alias='target')
@@ -415,7 +304,6 @@ def merge_property_delta(context, input_dataframe: DataFrame) -> DeltaCoordinate
     )
     context.log.info("Merged data into Delta table `property` successfully")
 
-    #return delta coordinates for notebooks to read from
     return target_delta_coordinate
 
 
@@ -430,23 +318,19 @@ def merge_property_delta(context, input_dataframe: DataFrame) -> DeltaCoordinate
 #     WHEN NOT MATCHED THEN
 #         INSERT *
 #     """
-#     # UPDATE SET{{ update_columns }}
-#     # INSERT ( {{ insert_columns }} )
-#     # VALUES ( {{ insert_columns }} )
 #     ,
 #     materialization_strategy="delta_table",
-#     # table_name="tag",
-#     ins = {"delta_coordinate": In(dagster_type=DeltaCoordinate),
-#     "df": In(dagster_type=DataFrame)}
+#     ins = {"delta_coordinate": dg.In(dagster_type=DeltaCoordinate),
+#     "df": dg.In(dagster_type=DataFrame)}
 # )
 
 
 
-@op(
+@dg.op(
     required_resource_keys={"s3"},
     description="""This will check if property is already downloaded. If so, check if price or other
     columns have changed in the meantime, or if date is very old, download again""",
-    out={"properties": Out(dagster_type=PropertyDataFrame, is_required=False, io_manager_key="fs_io_manager")},
+    out={"properties": dg.Out(dagster_type=PropertyDataFrame, is_required=False, io_manager_key="fs_io_manager")},
 
 )
 def get_changed_or_new_properties(context, properties: PropertyDataFrame, property_table: pd.DataFrame) -> PropertyDataFrame:
@@ -455,7 +339,6 @@ def get_changed_or_new_properties(context, properties: PropertyDataFrame, proper
     ids: str = ", ".join(ids_tmp)
 
     context.log.info("Fetched propertyDetails_id's: [{}]".format(ids))
-    # context.log.debug(f"type: property_table: {type(property_table)} and lenght {len(property_table)}")
 
     cols_props = ["propertyDetails_propertyId", "fingerprint"]
     cols_PropertyDataFrame = [
@@ -479,18 +362,11 @@ def get_changed_or_new_properties(context, properties: PropertyDataFrame, proper
     result_df = ps.sqldf(query, locals())
     context.log.info(f"Lenght: property_table: {len(result_df)}")
 
-    # get a list selected colum: `property_ids` and its fingerprint
     existing_props = result_df[["propertyDetails_propertyId", "fingerprint"]].values.tolist()
 
-    # Convert dict into pandas dataframe
     pd_existing_props = pd.DataFrame(existing_props, columns=cols_props)
     pd_properties = pd.DataFrame(properties, columns=cols_PropertyDataFrame)
 
-    # debugging
-    # context.log.debug(f"pd_existing_props: {pd_existing_props}, type: {type(pd_existing_props)}")
-    # context.log.debug(f"pd_properties: {pd_properties}")
-
-    # select new or changed once
     df_changed = ps.sqldf(
         """
         SELECT p.id, p.fingerprint, p.is_prefix, p.rentOrBuy, p.city, p.propertyType, p.radius, p.last_normalized_price
@@ -511,50 +387,34 @@ def get_changed_or_new_properties(context, properties: PropertyDataFrame, proper
         ids_changed = ", ".join(str(e) for e in df_changed["id"].tolist())
 
         context.log.info("changed properties: {}".format(ids_changed))
-        yield Output(changed_properties, "properties")
+        yield dg.Output(changed_properties, "properties")
 
 
 
-# @op(
+# @dg.op(
 #     required_resource_keys={"pyspark", "s3"},
-#     # config={'delta': DeltaType},
-#     description="""Creates the delta table on S3 and returns the DeltaCoordinates
-
-#     It will remove existing data on that path and or delte existing delta table.""",
+#     description="""Creates the delta table on S3 and returns the DeltaCoordinates""",
 #     config_schema={
-#         "mergeSchema": Field(
-#             Bool,
+#         "mergeSchema": dg.Field(
+#             bool,
 #             default_value=True,
 #             is_required=False,
-#             description=(
-#                 "if you want to merge different schema [true/false]. Added columns will be merged automatially by delta"
-#             ),
 #         ),
-#         "mode": Field(
-#             String,
+#         "mode": dg.Field(
+#             str,
 #             default_value="overwrite",
 #             is_required=False,
-#             description=(
-#                 "mode can be set to [overwrite], this way delta data will be overwritten if exists"
-#             ),
 #         ),
-#         "partitionBy": Field(
-#             String,
+#         "partitionBy": dg.Field(
+#             str,
 #             default_value="DateTimeDate",
 #             is_required=False,
-#             description=(
-#                 "column by with delta table (parquet-files) will be partitioned. This column must exist in table"
-#             ),
 #         ),
 #     },
 # )
 # def create_delta_table(
 #     context, data_frame: DataFrame, delta_coordinate: DeltaCoordinate
 # ) -> DeltaCoordinate:
-#     # TODO:
-#     # - make paritionBy column optional
-#     # - add parameter if delete table before creating option
-
 #     delta_path = _get_s3a_path(
 #         delta_coordinate["s3_coordinate_bucket"], delta_coordinate["s3_coordinate_key"]
 #     )
@@ -563,32 +423,26 @@ def get_changed_or_new_properties(context, properties: PropertyDataFrame, proper
 #         + delta_coordinate["table_name"]
 #         + " in path: {path} ...".format(path=delta_path)
 #     )
-
-#     # create database if not exists
+#
 #     context.resources.pyspark.spark_session.sql(
 #         "CREATE DATABASE IF NOT EXISTS {}".format(delta_coordinate["database"])
 #     )
-
-#     # drop table if exists
+#
 #     context.resources.pyspark.spark_session.sql(
 #         "DROP TABLE IF EXISTS {database}.{table_name}".format(
 #             database=delta_coordinate["database"],
 #             table_name=delta_coordinate["table_name"],
 #         )
 #     )
-
-#     # drop data_frames and data on delta_path
-#     # TODO: find if there is a fasater pay to delete on S3? -> databricks has dbutils.fs.rm(delta_path, recurse=True)
+#
 #     os.system("hdfs dfs -rm -r -skipTrash " + delta_path)
-
+#
 #     data_frame.write.format("delta").mode(context.op_config["mode"]).option(
 #         "mergeSchema", context.op_config["mergeSchema"]
 #     ).save(delta_path)
-#     # .partitionBy(context.op_config['partitionBy']) \
-
+#
 #     context.log.info("data_frame written to: " + delta_path)
-
-#     # create delta table
+#
 #     context.resources.pyspark.spark_session.sql(
 #         """
 #         CREATE TABLE IF NOT EXISTS {}.{}
@@ -598,25 +452,20 @@ def get_changed_or_new_properties(context, properties: PropertyDataFrame, proper
 #             delta_coordinate["database"], delta_coordinate["table_name"], delta_path
 #         )
 #     )
-
+#
 #     context.log.info("delta table " + delta_coordinate["table_name"] + " created")
-
-#     # TODO: decide if we want to yield Materialization to persist.
-#     # This way we don't need to pass delta_coordinate down-stream. But maybe we want this on purpose?
-
-#     # TODO: return s3 as well, so we don't need to specify again in ingest-yaml?
+#
 #     return delta_coordinate
 
 
-# @op(
+# @dg.op(
 #     required_resource_keys={"pyspark", "s3"},
 #     description="""Loads given delta coordinates into a spark data frame""",
-#     # output_defs=[OutputDefinition(name='data_frame', dagster_type=DataFrame, is_optional=False),],
 # )
 # def load_delta_table_to_df(
 #     context,
 #     delta_coordinate: DeltaCoordinate,
-#     where_conditions: String,
+#     where_conditions: str,
 # ) -> DataFrame:
 #     delta_path = _get_s3a_path(
 #         delta_coordinate["s3_coordinate_bucket"], delta_coordinate["s3_coordinate_key"]
@@ -632,24 +481,25 @@ def get_changed_or_new_properties(context, properties: PropertyDataFrame, proper
 #         data_frame = context.resources.pyspark.spark_session.read.format("delta").load(
 #             delta_path
 #         )
-
+#
 #     return data_frame
 
 
 #
-# GENERAL MINOR SPARK FUNCTIONS
-def do_prefix_column_names(df, prefix):
-    check.inst_param(df, "df", DataFrame)
-    check.str_param(prefix, "prefix")
-    return rename_spark_dataframe_columns(
-        df, lambda c: "{prefix}{c}".format(prefix=prefix, c=c)
-    )
-
-
-@op
-def canonicalize_column_names(_context, data_frame: DataFrame) -> DataFrame:
-    return rename_spark_dataframe_columns(data_frame, lambda c: c.lower())
-
-
-def replace_values_spark(data_frame, old, new):
-    return data_frame.na.replace(old, new)
+# GENERAL MINOR SPARK FUNCTIONS (kept as reference)
+#
+# def do_prefix_column_names(df, prefix):
+#     check.inst_param(df, "df", DataFrame)
+#     check.str_param(prefix, "prefix")
+#     return rename_spark_dataframe_columns(
+#         df, lambda c: "{prefix}{c}".format(prefix=prefix, c=c)
+#     )
+#
+#
+# @dg.op
+# def canonicalize_column_names(_context, data_frame: DataFrame) -> DataFrame:
+#     return rename_spark_dataframe_columns(data_frame, lambda c: c.lower())
+#
+#
+# def replace_values_spark(data_frame, old, new):
+#     return data_frame.na.replace(old, new)

@@ -13,7 +13,139 @@ services:
     networks:
       - postgres
 
+  # --- SeaweedFS (S3-compatible object store, replaces MinIO) ---
+
+  seaweedfs:
+    image: chrislusf/seaweedfs
+    container_name: seaweedfs
+    ports:
+      - "8333:8333"   # S3 API
+      - "9333:9333"   # Master
+      - "8080:8080"   # Volume / Filer
+    command: "server -s3 -s3.config=/etc/seaweedfs/s3.json -dir=/data"
+    volumes:
+      - seaweedfs-data:/data
+      - ./seaweedfs-s3.json:/etc/seaweedfs/s3.json:ro
+    networks:
+      - s3
+
+  # --- Apache Druid (best-effort, fine-tune later) ---
+
+  druid-zookeeper:
+    image: zookeeper:3.9
+    container_name: druid-zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOO_MY_ID: 1
+    networks:
+      - druid
+
+  druid-metadata:
+    image: postgres:15
+    container_name: druid-metadata
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_PASSWORD: druid
+      POSTGRES_USER: druid
+      POSTGRES_DB: druid
+    networks:
+      - druid
+
+  druid-coordinator:
+    image: apache/druid:30.0.1
+    container_name: druid-coordinator
+    ports:
+      - "8081:8081"
+    command: coordinator
+    depends_on:
+      - druid-zookeeper
+      - druid-metadata
+    environment: &druid-env
+      DRUID_LOG4J: <?xml version="1.0" encoding="UTF-8"?><Configuration status="WARN"><Appenders><Console name="Console" target="SYSTEM_OUT"><PatternLayout pattern="%d{ISO8601} %p [%t] %c - %m%n"/></Console></Appenders><Loggers><Root level="info"><AppenderRef ref="Console"/></Root></Loggers></Configuration>
+      druid_zk_service_host: druid-zookeeper
+      druid_metadata_storage_type: postgresql
+      druid_metadata_storage_connector_connectURI: jdbc:postgresql://druid-metadata:5432/druid
+      druid_metadata_storage_connector_user: druid
+      druid_metadata_storage_connector_password: druid
+      druid_coordinator_balancer_strategy: cachingCost
+      druid_indexer_runner_javaOptsArray: '["-server", "-Xmx1g", "-Xms1g", "-XX:MaxDirectMemorySize=3g", "-Duser.timezone=UTC", "-Dfile.encoding=UTF-8", "-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager"]'
+      druid_indexer_fork_property_druid_processing_buffer_sizeBytes: "256000000"
+      druid_storage_type: s3
+      druid_storage_bucket: real-estate
+      druid_storage_baseKey: druid/segments
+      druid_s3_accessKey: admin
+      druid_s3_secretKey: admin
+      druid_s3_endpoint_url: http://seaweedfs:8333
+      druid_s3_enablePathStyleAccess: "true"
+    networks:
+      - druid
+      - s3
+
+  druid-broker:
+    image: apache/druid:30.0.1
+    container_name: druid-broker
+    ports:
+      - "8082:8082"
+    command: broker
+    depends_on:
+      - druid-coordinator
+    environment: *druid-env
+    networks:
+      - druid
+      - s3
+
+  druid-historical:
+    image: apache/druid:30.0.1
+    container_name: druid-historical
+    ports:
+      - "8083:8083"
+    command: historical
+    depends_on:
+      - druid-coordinator
+    environment: *druid-env
+    networks:
+      - druid
+      - s3
+
+  druid-middlemanager:
+    image: apache/druid:30.0.1
+    container_name: druid-middlemanager
+    ports:
+      - "8091:8091"
+    command: middleManager
+    depends_on:
+      - druid-coordinator
+    environment: *druid-env
+    networks:
+      - druid
+      - s3
+
+  druid-router:
+    image: apache/druid:30.0.1
+    container_name: druid-router
+    ports:
+      - "8888:8888"
+    command: router
+    depends_on:
+      - druid-coordinator
+      - druid-broker
+    environment: *druid-env
+    networks:
+      - druid
+      - s3
+
+volumes:
+  seaweedfs-data:
+
 networks:
   postgres:
     driver: bridge
     name: postgres
+  druid:
+    driver: bridge
+    name: druid
+  s3:
+    driver: bridge
+    name: s3

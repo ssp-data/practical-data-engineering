@@ -5,11 +5,8 @@ from .types import DeltaCoordinate, DruidCoordinate
 import requests
 import json
 
-from dagster import (
-    op,
-    Field,
-    String,
-)
+import dagster as dg
+from dagster import file_relative_path
 
 
 def _druid_ingest_spec_replacer(
@@ -33,28 +30,28 @@ def _druid_ingest_spec_replacer(
     return spec
 
 
-@op(
-    required_resource_keys={'pyspark', 's3', 'druid'},
+@dg.op(
+    required_resource_keys={'s3', 'druid'},
     description='''This ingests data from your input delta table (sitting on s3 bucket) into druid.
 
     It will check first the connection to druid cluster
     then delete all segements in the interval specified
     before it loads the new parquet files (your delta table)''',
     config_schema={
-        'status_health_api_postfix': Field(
-            String,
+        'status_health_api_postfix': dg.Field(
+            str,
             default_value='status/health',
             is_required=False,
             description=('druid api to get healt of druid cluster'),
         ),
-        'datasource_health_api_postfix': Field(
-            String,
+        'datasource_health_api_postfix': dg.Field(
+            str,
             default_value='druid/coordinator/v1/datasources',
             is_required=False,
             description=('druid api to list datasources in druid cluster'),
         ),
-        'status_index_task_api_postfix': Field(
-            String,
+        'status_index_task_api_postfix': dg.Field(
+            str,
             default_value='druid/indexer/v1/task',
             is_required=False,
             description=('druid api to ingest a index task to druid cluster'),
@@ -67,8 +64,6 @@ def ingest_druid(
     druid_coordinate: DruidCoordinate,
 ) -> DruidCoordinate:
 
-    # context.log.info(context.resources.druid.druid_router)
-
     context.log.info('router: ' + context.resources.druid.get_router_url())
 
     #
@@ -77,7 +72,7 @@ def ingest_druid(
     druidHealthAPI = (
         context.resources.druid.get_router_url()
         + '/'
-        + context.solid_config['status_health_api_postfix']
+        + context.op_config['status_health_api_postfix']
     )
     context.log.debug("Druid healt API: " + druidHealthAPI)
 
@@ -89,9 +84,9 @@ def ingest_druid(
     )
 
     if r.status_code != 200:
-        raise ValueError("1.2. Druid is unhealthy. Status_Code: {status_code}").format(
+        raise ValueError("1.2. Druid is unhealthy. Status_Code: {status_code}".format(
             status_code=r.status_code
-        )
+        ))
     else:
         #
         # submit deletion of segments
@@ -101,7 +96,7 @@ def ingest_druid(
         druidDeleteSegmentAPI = (
             context.resources.druid.get_router_url()
             + '/'
-            + context.solid_config['datasource_health_api_postfix']
+            + context.op_config['datasource_health_api_postfix']
             + '/'
             + druid_coordinate['datasource']
             + "/markUnused"
@@ -117,9 +112,6 @@ def ingest_druid(
             )
         )
 
-        # TODO: Ingest only latest Parquet-files from delta (delta keeps older versions for time-travel).
-        # If we're not doing that, we will ingest old versions together agian
-
         #
         # get ingest spec:
         #
@@ -128,9 +120,9 @@ def ingest_druid(
             with open(spec_path, 'r') as f:
                 ingestSpec = f.read()
         except ValueError as error:
-            raise ValueError("Json at path: '{fpath}' not found. {err}").format(
+            raise ValueError("Json at path: '{fpath}' not found. {err}".format(
                 fpath=druid_coordinate['PathToJsonIngestSpec'], err=error
-            )
+            ))
         #
         # parse json spec
         #
@@ -138,8 +130,9 @@ def ingest_druid(
             ingestSpecJson = json.loads(ingestSpec)
         except ValueError as error:
             raise ValueError(
-                "Not a valid JSON at path: '{fpath}'. Check the syntaxt: {err}"
-            ).format(fpath=druid_coordinate['PathToJsonIngestSpec'], err=error)
+                "Not a valid JSON at path: '{fpath}'. Check the syntaxt: {err}".format(
+                    fpath=druid_coordinate['PathToJsonIngestSpec'], err=error
+                ))
 
         context.log.info(
             "3. Ingest spec successfully loaded from path '{fpath}'".format(fpath=spec_path)
@@ -157,7 +150,7 @@ def ingest_druid(
         druidTaskAPI = (
             context.resources.druid.get_router_url()
             + '/'
-            + context.solid_config['status_index_task_api_postfix']
+            + context.op_config['status_index_task_api_postfix']
         )
 
         r = context.resources.druid.get_session().post(
@@ -177,8 +170,5 @@ def ingest_druid(
                     status_code=r.status_code, reason=r.reason
                 )
             )
-        # TODO: check report status of Druid task, if it failed directly, or if its loading
-        #       - report-API: druid/indexer/v1/task/"+task+"/reports"
-        #       - maybe wait a couple of seconds/minutes, to be sure it stared correctly?
     # return delta object
     return druid_coordinate

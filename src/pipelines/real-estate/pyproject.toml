@@ -1,35 +1,38 @@
 [project]
 name = "real-estate"
 version = "0.1.0"
-requires-python = ">=3.14"
+requires-python = ">=3.10,<3.14"
 dependencies = [
-    "boto3>=1.42.64",
-    "dagster==1.5.1",
-    "dagster-aws==0.21.1",
-    "dagster-pandas==0.21.1",
-    "dagster-postgres==0.21.1",
-    "dagster-pyspark==0.21.1",
-    "dagster-spark==0.21.1",
-    "dagster-webserver>=1.5.1",
-    "dagstermill>=0.21.1",
-    "folium>=0.20.0",
-    "ijson>=3.5.0",
-    "koalas>=1.8.2",
-    "matplotlib>=3.10.8",
-    "numpy>=2.4.3",
-    "pandas>=3.0.1",
-    "pandasql>=0.7.3",
-    "pyarrow>=23.0.1",
-    "pyspark>=4.1.1",
-    "pyyaml>=6.0.3",
-    "scikit-learn>=1.8.0",
-    "scipy>=1.17.1",
-    "seaborn>=0.13.2",
+    "dagster>=1.12,<1.13",
+    "dagster-pandas>=0.28,<0.29",
+    "dagstermill>=0.28,<0.29",
+    "notebook",
+    "dagster-aws>=0.28,<0.29",
+    "dagster-postgres>=0.28,<0.29",
+    "dagster-webserver>=1.12,<1.13",
+    "dagster-deltalake>=0.28,<0.29",
+    "dagster-deltalake-pandas>=0.28,<0.29",
+    "pyarrow",
+    "pandas",
+    "boto3",
+    "pandasql",
+    "pyyaml",
+    "numpy",
+    "seaborn",
+    "folium",
+    "ijson",
+    "scipy",
+    "matplotlib",
+    "scikit-learn",
+    "bs4",
+    "jinja2",
+    "requests",
+    "pyspark",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "dagster-webserver",
+    "dagster-webserver>=1.12,<1.13",
     "pytest",
 ]
 
@@ -37,6 +40,13 @@ dev = [
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+include = ["realestate*"]
+
 [tool.dagster]
 module_name = "realestate"
 
+[dependency-groups]
+dev = [
+    "types-requests>=2.32.4.20260107",
+]

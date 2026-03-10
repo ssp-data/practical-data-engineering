@@ -2,22 +2,26 @@ ops:
   collect_search_criterias:
     inputs:
       search_criterias:
-        # - city: Bern
-        #   propertyType: real-estate
-        #   radius: 0
-        #   rentOrBuy: buy
-        # - city: Solothurn
-        #   propertyType: real-estate
-        #   radius: 0
-        #   rentOrBuy: buy
-        - city: twann
-          propertyType: real-estate
-          radius: 0
-          rentOrBuy: buy
-        # - city: biel-bienne
-        #   propertyType: real-estate
-        #   radius: 0
-        #   rentOrBuy: buy
+        # - value:
+        #     city: Bern
+        #     propertyType: real-estate
+        #     radius: 0
+        #     rentOrBuy: buy
+        # - value:
+        #     city: Solothurn
+        #     propertyType: real-estate
+        #     radius: 0
+        #     rentOrBuy: buy
+        - value:
+            city: twann
+            propertyType: real-estate
+            radius: 0
+            rentOrBuy: buy
+        # - value:
+        #     city: biel-bienne
+        #     propertyType: real-estate
+        #     radius: 0
+        #     rentOrBuy: buy
   # merge_staging_to_delta_table:
   #   ops:
   #     cache_properies_from_rest_api:
@@ -32,7 +36,9 @@ ops:
   #           table_name: property
   data_exploration:
     inputs:
-      # delta_path: s3a://real-estate/lake/bronze/property
-      key: minio
-      secret: miniostorage
-      endpoint: http://192.168.46.93:9000
+      key:
+        value: admin
+      secret:
+        value: admin
+      endpoint:
+        value: http://127.0.0.1:8333

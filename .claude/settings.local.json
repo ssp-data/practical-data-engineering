@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd /home/sspaeti/git/data-engineering/practical-data-engineering/src/pipelines/real-estate && rm -f setup.py setup.cfg dev-requirements.txt tox.ini && rm -rf realestate.egg-info/ real_estate.egg-info/ spark-warehouse/)",
+      "Bash(rm -f uv.lock && uv lock 2>&1 | tail -30)",
+      "Bash(uv sync:*)",
+      "Bash(uv run:*)",
+      "Bash(pkill -f \"dagster dev\" 2>/dev/null; sleep 1; timeout 15 uv run dagster dev 2>&1 || true)",
+      "Bash(timeout 15 uv run dagster dev 2>&1; echo \"EXIT: $?\")",
+      "Read(//tmp/**)",
+      "Bash(curl -s -A \"Mozilla/5.0 \\(X11; Linux x86_64; rv:128.0\\) Gecko/20100101 Firefox/128.0\" \"https://www.immoscout24.ch/en/real-estate/buy/city-twann?r=0&map=1\" -o /tmp/immo_twann2.html && wc -c /tmp/immo_twann2.html)"
+    ]
+  }
+}
