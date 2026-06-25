@@ -72,12 +72,12 @@ Open http://127.0.0.1:3000 in your browser to access the Dagster UI.
 
 This project uses [SeaweedFS](https://github.com/seaweedfs/seaweedfs) as an S3-compatible object store, replacing the previously used MinIO. SeaweedFS is lightweight and provides full S3 API compatibility on port 8333.
 
-**Docker (recommended):**
+**Docker:**
 ```sh
 docker compose up seaweedfs -d
 ```
 
-**Standalone (recommended):**
+**Standalone:**
 ```sh
 # Install via package manager or download from https://github.com/seaweedfs/seaweedfs/releases
 # On Arch Linux:
@@ -101,6 +101,8 @@ The pipeline reads S3 credentials from environment variables with these defaults
 | `S3_ENDPOINT` | `http://127.0.0.1:8333` | S3 endpoint URL |
 
 SeaweedFS auto-creates buckets on first write, so no manual bucket setup is needed.
+
+The UI is accessable at [http://localhost:9333/](http://localhost:9333/). And also install the bucket initially once with `aws --endpoint-url http://127.0.0.1:8333 s3 mb s3://real-estate`.
 
 **Migrating from MinIO:**
 
